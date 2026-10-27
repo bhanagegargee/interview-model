@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterviewAI — Meet Your Toughest Interviewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #070c14;
+      --surface:  #0d1624;
+      --card:     #111d2e;
+      --border:   rgba(100,160,255,0.10);
+      --border-b: rgba(100,160,255,0.22);
+      --accent:   #38bdf8;
+      --accent2:  #0ea5e9;
+      --green:    #34d399;
+      --yellow:   #fbbf24;
+      --red:      #f87171;
+      --purple:   #a78bfa;
+      --text:     #e2eaf5;
+      --sub:      #8ba0bb;
+      --dim:      #4d6480;
+      --mono:     'IBM Plex Mono', monospace;
+      --display:  'Syne', sans-serif;
+      --body:     'Inter', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--body);
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ── Noise overlay ── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 0;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 128px;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(7,12,20,0.85);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto;
+      padding: 16px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--display); font-size: 18px; font-weight: 700;
+      color: var(--text); text-decoration: none;
+    }
+    .logo svg { color: var(--accent); }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a {
+      font-size: 13px; color: var(--sub); text-decoration: none;
+      font-family: var(--mono); letter-spacing: 0.5px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      padding: 9px 20px;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      color: #07131f; font-weight: 700;
+      font-family: var(--display); font-size: 13px;
+      border-radius: 8px; text-decoration: none;
+      border: none; cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 16px rgba(56,189,248,0.2);
+    }
+    .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(56,189,248,0.35); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; align-items: center;
+      padding: 120px 32px 80px;
+      overflow: hidden;
+    }
+
+    /* grid overlay */
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(56,189,248,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 70%);
+    }
+
+    /* radial accent glows */
+    .glow-1 {
+      position: absolute; top: -100px; right: -100px;
+      width: 700px; height: 700px;
+      background: radial-gradient(ellipse, rgba(56,189,248,0.06) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .glow-2 {
+      position: absolute; bottom: -200px; left: -100px;
+      width: 600px; height: 600px;
+      background: radial-gradient(ellipse, rgba(167,139,250,0.04) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      max-width: 1100px; margin: 0 auto; width: 100%;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 80px; align-items: center;
+    }
+
+    .hero-left { position: relative; }
+
+    .hero-tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--accent);
+      padding: 6px 12px;
+      background: rgba(56,189,248,0.07);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 100px;
+      margin-bottom: 28px;
+      animation: fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .hero-tag::before {
+      content: '';
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      animation: blink 2s step-start infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .hero h1 {
+      font-family: var(--display);
+      font-size: clamp(3rem, 6vw, 5.2rem);
+      font-weight: 900;
+      line-height: 1.0;
+      letter-spacing: -2.5px;
+      color: var(--text);
+      margin-bottom: 10px;
+      animation: fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.1s both;
+    }
+
+    .hero h1 .line-accent {
+      color: var(--accent);
+      position: relative; display: inline-block;
+    }
+    .hero h1 .line-accent::after {
+      content: '';
+      position: absolute; bottom: -4px; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+    }
+
+    .hero h1 .line-dim { color: var(--dim); }
+
+    .hero-sub {
+      font-size: 16px; color: var(--sub); line-height: 1.8;
+      max-width: 460px; margin-bottom: 40px;
+      animation: fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s both;
+    }
+
+    .hero-actions {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      animation: fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.3s both;
+    }
+
+    .btn-hero-primary {
+      padding: 15px 32px;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      color: #07131f; font-weight: 800;
+      font-family: var(--display); font-size: 15px;
+      border-radius: 10px; text-decoration: none; border: none; cursor: pointer;
+      box-shadow: 0 4px 24px rgba(56,189,248,0.25);
+      transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-hero-primary:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(56,189,248,0.35); }
+
+    .btn-hero-secondary {
+      padding: 15px 28px;
+      background: transparent;
+      color: var(--sub); font-weight: 600;
+      font-family: var(--display); font-size: 15px;
+      border-radius: 10px; text-decoration: none;
+      border: 1px solid var(--border-b); cursor: pointer;
+      transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-hero-secondary:hover { border-color: rgba(100,160,255,0.45); color: var(--text); transform: translateY(-2px); }
+
+    /* ── HERO FACE / VISUAL ── */
+    .hero-right {
+      position: relative; display: flex; justify-content: center;
+      animation: fadeIn 1.2s cubic-bezier(0.16,1,0.3,1) 0.4s both;
+    }
+
+    .face-container {
+      position: relative; width: 360px; height: 440px;
+    }
+
+    .face-card {
+      position: absolute; inset: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      overflow: hidden;
+    }
+    .face-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    /* Neural grid background */
+    .face-bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 40%, rgba(56,189,248,0.07) 0%, transparent 70%),
+        linear-gradient(180deg, rgba(56,189,248,0.04) 0%, transparent 50%);
+    }
+
+    /* Scan line animation */
+    .scanline {
+      position: absolute; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(56,189,248,0.4), transparent);
+      animation: scan 4s linear infinite;
+      pointer-events: none; z-index: 10;
+    }
+    @keyframes scan {
+      0%   { top: 0%; opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    /* Face SVG artwork */
+    .face-art {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Corner HUD markers */
+    .hud-corner {
+      position: absolute; width: 20px; height: 20px;
+      border-color: rgba(56,189,248,0.5); border-style: solid;
+    }
+    .hud-tl { top: 16px; left: 16px; border-width: 2px 0 0 2px; }
+    .hud-tr { top: 16px; right: 16px; border-width: 2px 2px 0 0; }
+    .hud-bl { bottom: 16px; left: 16px; border-width: 0 0 2px 2px; }
+    .hud-br { bottom: 16px; right: 16px; border-width: 0 2px 2px 0; }
+
+    /* Data overlay chips on face card */
+    .face-data {
+      position: absolute; bottom: 24px; left: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .face-data-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(7,12,20,0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+    .face-data-label {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--dim);
+    }
+    .face-data-val {
+      font-family: var(--mono); font-size: 11px; font-weight: 600;
+      color: var(--accent);
+    }
+    .face-data-bar {
+      height: 4px; background: rgba(56,189,248,0.1); border-radius: 2px; overflow: hidden;
+      width: 80px;
+    }
+    .face-data-fill {
+      height: 100%; border-radius: 2px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      animation: fillGrow 2s ease forwards;
+    }
+    @keyframes fillGrow {
+      from { width: 0%; }
+    }
+
+    /* Eye tracking dots */
+    .eye-track {
+      position: absolute; top: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
+    }
+    .eye-label {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px;
+      color: var(--green); text-transform: uppercase;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .eye-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: blink 1.5s step-start infinite; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* Social proof row */
+    .hero-proof {
+      margin-top: 48px;
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+      animation: fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.4s both;
+    }
+    .proof-item {
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .proof-num {
+      font-family: var(--display); font-size: 22px; font-weight: 800;
+      color: var(--text); line-height: 1;
+    }
+    .proof-label { font-size: 11px; color: var(--dim); font-family: var(--mono); letter-spacing: 0.5px; }
+    .proof-divider { width: 1px; height: 32px; background: var(--border); }
+
+    /* ── FEATURES STRIP ── */
+    .strip {
+      position: relative; z-index: 1;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      overflow: hidden;
+    }
+    .strip-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; gap: 48px; align-items: center;
+      white-space: nowrap; overflow: hidden;
+    }
+    .strip-item {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--dim); flex-shrink: 0;
+    }
+    .strip-item span { color: var(--accent); }
+
+    /* ── DEMO SECTION ── */
+    .section {
+      position: relative; z-index: 1;
+      padding: 100px 32px;
+    }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+
+    .section-tag {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--accent);
+      margin-bottom: 16px; opacity: 0.8;
+    }
+    .section-title {
+      font-family: var(--display); font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 800; letter-spacing: -1.5px; color: var(--text);
+      margin-bottom: 16px; line-height: 1.1;
+    }
+    .section-sub {
+      font-size: 15px; color: var(--sub); max-width: 500px; line-height: 1.8;
+      margin-bottom: 56px;
+    }
+
+    /* Demo flow */
+    .demo-flow {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    }
+
+    .demo-step {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px 24px;
+      position: relative; overflow: hidden;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+    .demo-step:hover { border-color: var(--border-b); transform: translateY(-4px); }
+
+    .demo-step::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .demo-step:nth-child(1)::before { background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+    .demo-step:nth-child(2)::before { background: linear-gradient(90deg, transparent, var(--purple), transparent); }
+    .demo-step:nth-child(3)::before { background: linear-gradient(90deg, transparent, var(--green), transparent); }
+
+    .step-num {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+      color: var(--dim); margin-bottom: 16px; text-transform: uppercase;
+    }
+    .step-icon {
+      font-size: 28px; margin-bottom: 16px; display: block;
+    }
+    .step-title {
+      font-family: var(--display); font-size: 18px; font-weight: 700;
+      color: var(--text); margin-bottom: 10px; letter-spacing: -0.3px;
+    }
+    .step-desc { font-size: 13px; color: var(--sub); line-height: 1.7; }
+
+    /* Waveform animation */
+    .wave-demo {
+      margin-top: 20px; display: flex; align-items: center; gap: 3px; height: 32px;
+    }
+    .wave-bar {
+      width: 3px; border-radius: 2px;
+      background: var(--accent);
+      animation: waveDance 1.2s ease-in-out infinite;
+    }
+    .wave-bar:nth-child(1)  { animation-delay: 0.0s; height: 8px; }
+    .wave-bar:nth-child(2)  { animation-delay: 0.1s; height: 20px; }
+    .wave-bar:nth-child(3)  { animation-delay: 0.2s; height: 14px; }
+    .wave-bar:nth-child(4)  { animation-delay: 0.3s; height: 24px; }
+    .wave-bar:nth-child(5)  { animation-delay: 0.4s; height: 10px; }
+    .wave-bar:nth-child(6)  { animation-delay: 0.5s; height: 28px; }
+    .wave-bar:nth-child(7)  { animation-delay: 0.6s; height: 16px; }
+    .wave-bar:nth-child(8)  { animation-delay: 0.7s; height: 22px; }
+    .wave-bar:nth-child(9)  { animation-delay: 0.8s; height: 12px; }
+    .wave-bar:nth-child(10) { animation-delay: 0.9s; height: 18px; }
+    @keyframes waveDance {
+      0%, 100% { transform: scaleY(0.4); opacity: 0.5; }
+      50%       { transform: scaleY(1);   opacity: 1; }
+    }
+
+    /* Score mini */
+    .score-mini {
+      margin-top: 20px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .score-row { display: flex; align-items: center; gap: 10px; }
+    .score-row-label { font-family: var(--mono); font-size: 10px; color: var(--dim); width: 80px; letter-spacing: 0.5px; }
+    .score-track { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 2px; animation: fillGrow 1.5s ease forwards; }
+    .score-val { font-family: var(--mono); font-size: 10px; color: var(--text); width: 24px; text-align: right; }
+
+    /* ── FEATURES GRID ── */
+    .features {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .features-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    }
+    .feature-cell {
+      padding: 40px 32px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      transition: background 0.2s;
+    }
+    .feature-cell:hover { background: rgba(56,189,248,0.03); }
+    .feature-cell:nth-child(4n) { border-right: none; }
+    .feature-cell:nth-child(n+5) { border-bottom: none; }
+    .feature-icon-wrap {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: rgba(56,189,248,0.08);
+      border: 1px solid rgba(56,189,248,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; margin-bottom: 16px;
+    }
+    .feature-title {
+      font-family: var(--display); font-size: 15px; font-weight: 700;
+      color: var(--text); margin-bottom: 8px; letter-spacing: -0.2px;
+    }
+    .feature-desc { font-size: 13px; color: var(--sub); line-height: 1.7; }
+
+    /* ── INDUSTRIES ── */
+    .industries { padding: 100px 32px; }
+    .industry-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-top: 48px;
+    }
+    .industry-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px 24px;
+      display: flex; align-items: center; gap: 14px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .industry-card:hover { border-color: var(--border-b); transform: translateY(-2px); }
+    .ind-icon { font-size: 22px; }
+    .ind-name { font-family: var(--display); font-size: 15px; font-weight: 700; color: var(--text); }
+    .ind-count { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: 0.5px; }
+    .ind-arrow { margin-left: auto; color: var(--dim); font-size: 12px; transition: transform 0.2s; }
+    .industry-card:hover .ind-arrow { transform: translateX(4px); color: var(--accent); }
+
+    /* ── SEVERITY SECTION ── */
+    .severity {
+      padding: 100px 32px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+    .severity-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;
+    }
+    .sev-terminal {
+      background: #080e1a; border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      font-family: var(--mono);
+    }
+    .terminal-bar {
+      background: var(--card); padding: 10px 16px;
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .t-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .t-dot-r { background: #f87171; }
+    .t-dot-y { background: #fbbf24; }
+    .t-dot-g { background: #34d399; }
+    .terminal-title { font-size: 11px; color: var(--dim); margin-left: auto; letter-spacing: 1px; }
+    .terminal-body { padding: 24px; }
+    .t-line { font-size: 12px; color: var(--dim); line-height: 2.2; }
+    .t-prompt { color: var(--accent); }
+    .t-cmd { color: var(--text); }
+    .t-output { color: var(--green); }
+    .t-warn { color: var(--yellow); }
+    .t-err { color: var(--red); }
+    .t-cursor { display: inline-block; width: 7px; height: 13px; background: var(--accent); animation: blink 1s step-start infinite; vertical-align: middle; }
+
+    /* ── CTA SECTION ── */
+    .cta-section {
+      padding: 120px 32px;
+      text-align: center; position: relative; z-index: 1;
+    }
+    .cta-glow {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      width: 600px; height: 300px;
+      background: radial-gradient(ellipse, rgba(56,189,248,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-tag {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 24px;
+      display: block;
+    }
+    .cta-title {
+      font-family: var(--display); font-size: clamp(2.4rem, 5vw, 4rem);
+      font-weight: 900; letter-spacing: -2px; color: var(--text);
+      margin-bottom: 20px; line-height: 1.05;
+    }
+    .cta-sub { font-size: 15px; color: var(--sub); max-width: 480px; margin: 0 auto 44px; line-height: 1.8; }
+    .cta-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    /* Warning badge */
+    .warning-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-top: 28px;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+      color: var(--yellow); opacity: 0.7;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 32px 32px;
+      background: rgba(7,12,20,0.9);
+    }
+    .footer-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+    }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-family: var(--mono); font-size: 11px; color: var(--dim); text-decoration: none; letter-spacing: 0.5px; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--sub); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      .hero-inner { grid-template-columns: 1fr; gap: 48px; }
+      .hero-right { display: none; }
+      .demo-flow { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .feature-cell:nth-child(2n) { border-right: none; }
+      .industries-grid, .industry-grid { grid-template-columns: 1fr 1fr; }
+      .severity-inner { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: rgba(100,160,255,0.15); border-radius: 3px; }
+    ::selection { background: rgba(56,189,248,0.2); color: var(--text); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L21.5 7.5V16.5L12 22L2.5 16.5V7.5L12 2Z" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+      </svg>
+      InterviewAI
+    </a>
+    <div class="nav-links">
+      <a href="#how-it-works">How it works</a>
+      <a href="#industries">Industries</a>
+      <a href="#features">Features</a>
+    </div>
+    <a href="register.html" class="nav-cta">Start Interview →</a>
+    <a href="profile.html" class="nav-cta">Profile</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="glow-1"></div>
+  <div class="glow-2"></div>
+  <div class="hero-inner">
+    <div class="hero-left">
+      <div class="hero-tag">AI Interview Platform · v4.0</div>
+      <h1>
+        Meet Your<br>
+        Interviewer.
+      </h1>
+      <p class="hero-sub">
+        Practice with an AI that thinks like a real hiring manager. Real-time analysis of your confidence, clarity, body language, and response quality. No mercy. No flattery.
+      </p>
+      <div class="hero-actions">
+        <a href="register.html" class="btn-hero-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polygon points="5,3 19,12 5,21" fill="currentColor"/></svg>
+          Start Mock Interview
+        </a>
+        <a href="register.html" class="btn-hero-secondary">
+          Try 3 Questions Free →
+        </a>
+      </div>
+      <div class="hero-proof">
+        
+        <div class="proof-divider"></div>
+        
+        <div class="proof-divider"></div>
+        
+      </div>
+    </div>
+
+    <!-- Hero Visual -->
+    <div class="hero-right">
+      <div class="face-container">
+        <div class="face-card">
+          <div class="face-bg"></div>
+          <div class="scanline"></div>
+
+          <div class="hud-corner hud-tl"></div>
+          <div class="hud-corner hud-tr"></div>
+          <div class="hud-corner hud-bl"></div>
+          <div class="hud-corner hud-br"></div>
+
+          <div class="eye-track">
+            <div class="eye-label"><div class="eye-dot"></div>EYE CONTACT</div>
+          </div>
+
+          <!-- Simple Robot Face -->
+          <div class="face-art">
+            <svg width="260" height="340" viewBox="0 0 260 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="4" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <filter id="smglow" x="-40%" y="-40%" width="180%" height="180%">
+                  <feGaussianBlur stdDeviation="2" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <linearGradient id="hgrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#0f1e32"/>
+                  <stop offset="100%" stop-color="#07111e"/>
+                </linearGradient>
+                <linearGradient id="egrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#0ea5e9"/>
+                  <stop offset="100%" stop-color="#38bdf8"/>
+                </linearGradient>
+              </defs>
+
+              <!-- ANTENNA -->
+              <rect x="122" y="4" width="16" height="24" rx="5" fill="#0c1828" stroke="rgba(56,189,248,0.3)" stroke-width="1"/>
+              <circle cx="130" cy="4" r="6" fill="#0c1828" stroke="rgba(56,189,248,0.5)" stroke-width="1"/>
+              <circle cx="130" cy="4" r="3" fill="#38bdf8" filter="url(#smglow)"/>
+
+              <!-- HEAD -->
+              <rect x="40" y="28" width="180" height="196" rx="24" fill="url(#hgrad)" stroke="rgba(56,189,248,0.28)" stroke-width="1.5"/>
+              <!-- Top bar accent -->
+              <rect x="60" y="34" width="140" height="2" rx="1" fill="rgba(56,189,248,0.12)"/>
+              <!-- Mid panel seam -->
+              <line x1="50" y1="100" x2="210" y2="100" stroke="rgba(56,189,248,0.08)" stroke-width="1" stroke-dasharray="6 5"/>
+
+              <!-- EAR left -->
+              <rect x="18" y="72" width="24" height="66" rx="9" fill="#0c1828" stroke="rgba(56,189,248,0.22)" stroke-width="1.2"/>
+              <rect x="24" y="82"  width="9" height="5" rx="2" fill="rgba(56,189,248,0.22)"/>
+              <rect x="24" y="91"  width="9" height="5" rx="2" fill="rgba(56,189,248,0.16)"/>
+              <rect x="24" y="100" width="9" height="5" rx="2" fill="rgba(56,189,248,0.11)"/>
+              <rect x="24" y="109" width="9" height="5" rx="2" fill="rgba(56,189,248,0.07)"/>
+
+              <!-- EAR right -->
+              <rect x="218" y="72" width="24" height="66" rx="9" fill="#0c1828" stroke="rgba(56,189,248,0.22)" stroke-width="1.2"/>
+              <rect x="227" y="82"  width="9" height="5" rx="2" fill="rgba(56,189,248,0.22)"/>
+              <rect x="227" y="91"  width="9" height="5" rx="2" fill="rgba(56,189,248,0.16)"/>
+              <rect x="227" y="100" width="9" height="5" rx="2" fill="rgba(56,189,248,0.11)"/>
+              <rect x="227" y="109" width="9" height="5" rx="2" fill="rgba(56,189,248,0.07)"/>
+
+              <!-- EYE LEFT socket -->
+              <rect x="56" y="106" width="62" height="38" rx="11" fill="#050d18" stroke="rgba(56,189,248,0.38)" stroke-width="1.3"/>
+              <!-- Eye glow bg -->
+              <rect x="60" y="110" width="54" height="30" rx="8" fill="rgba(14,165,233,0.07)" filter="url(#glow)"/>
+              <!-- Eye lens -->
+              <rect x="64" y="114" width="46" height="22" rx="7" fill="#071626"/>
+              <rect x="64" y="114" width="46" height="22" rx="7" fill="none" stroke="rgba(56,189,248,0.55)" stroke-width="1"/>
+              <!-- Eye fill glow -->
+              <rect x="68" y="118" width="38" height="14" rx="5" fill="url(#egrad)" opacity="0.9" filter="url(#smglow)"/>
+              <!-- Scanline -->
+              <line x1="66" y1="125" x2="108" y2="125" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+              <!-- Highlight -->
+              <circle cx="78" cy="120" r="2.5" fill="rgba(255,255,255,0.55)"/>
+
+              <!-- EYE RIGHT socket -->
+              <rect x="142" y="106" width="62" height="38" rx="11" fill="#050d18" stroke="rgba(56,189,248,0.38)" stroke-width="1.3"/>
+              <rect x="146" y="110" width="54" height="30" rx="8" fill="rgba(14,165,233,0.07)" filter="url(#glow)"/>
+              <rect x="150" y="114" width="46" height="22" rx="7" fill="#071626"/>
+              <rect x="150" y="114" width="46" height="22" rx="7" fill="none" stroke="rgba(56,189,248,0.55)" stroke-width="1"/>
+              <rect x="154" y="118" width="38" height="14" rx="5" fill="url(#egrad)" opacity="0.9" filter="url(#smglow)"/>
+              <line x1="152" y1="125" x2="194" y2="125" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+              <circle cx="164" cy="120" r="2.5" fill="rgba(255,255,255,0.55)"/>
+
+              <!-- NOSE sensor -->
+              <rect x="116" y="156" width="28" height="18" rx="6" fill="#050d18" stroke="rgba(56,189,248,0.22)" stroke-width="1"/>
+              <circle cx="125" cy="165" r="3" fill="rgba(56,189,248,0.28)"/>
+              <circle cx="135" cy="165" r="3" fill="rgba(56,189,248,0.18)"/>
+
+              <!-- MOUTH grille -->
+              <rect x="62" y="182" width="136" height="28" rx="9" fill="#050d18" stroke="rgba(56,189,248,0.28)" stroke-width="1.3"/>
+              <line x1="70" y1="189" x2="190" y2="189" stroke="rgba(56,189,248,0.22)" stroke-width="1.2"/>
+              <line x1="70" y1="196" x2="190" y2="196" stroke="rgba(56,189,248,0.16)" stroke-width="1"/>
+              <line x1="70" y1="203" x2="190" y2="203" stroke="rgba(56,189,248,0.1)" stroke-width="0.8"/>
+              <!-- LEDs -->
+              <circle cx="76"  cy="196" r="2.2" fill="#34d399" opacity="0.95" filter="url(#smglow)"/>
+              <circle cx="85"  cy="196" r="2.2" fill="#38bdf8" opacity="0.75" filter="url(#smglow)"/>
+              <circle cx="94"  cy="196" r="2"   fill="rgba(56,189,248,0.45)"/>
+              <circle cx="102" cy="196" r="1.5" fill="rgba(56,189,248,0.2)"/>
+
+              <!-- NECK -->
+              <rect x="94" y="224" width="72" height="18" rx="5" fill="#0a1828" stroke="rgba(56,189,248,0.18)" stroke-width="1"/>
+              <rect x="100" y="228" width="12" height="8" rx="2.5" fill="rgba(56,189,248,0.18)"/>
+              <rect x="117" y="228" width="12" height="8" rx="2.5" fill="rgba(56,189,248,0.14)"/>
+              <rect x="134" y="228" width="12" height="8" rx="2.5" fill="rgba(56,189,248,0.11)"/>
+              <rect x="151" y="228" width="12" height="8" rx="2.5" fill="rgba(56,189,248,0.08)"/>
+
+              <!-- BODY / CHEST -->
+              <rect x="52" y="242" width="156" height="90" rx="18" fill="#0a1828" stroke="rgba(56,189,248,0.2)" stroke-width="1.2"/>
+              <rect x="52" y="242" width="156" height="2" rx="1" fill="rgba(56,189,248,0.1)"/>
+              <!-- Inner chest panel -->
+              <rect x="66" y="254" width="128" height="64" rx="10" fill="#071220" stroke="rgba(56,189,248,0.1)" stroke-width="0.8"/>
+
+              <!-- Center power orb -->
+              <circle cx="130" cy="280" r="20" fill="#060f1e" stroke="rgba(56,189,248,0.38)" stroke-width="1.3"/>
+              <circle cx="130" cy="280" r="15" fill="rgba(14,165,233,0.08)" filter="url(#glow)"/>
+              <circle cx="130" cy="280" r="10" fill="rgba(14,165,233,0.18)" stroke="rgba(56,189,248,0.55)" stroke-width="1"/>
+              <circle cx="130" cy="280" r="5.5" fill="#38bdf8" opacity="0.9" filter="url(#smglow)"/>
+              <circle cx="133" cy="276" r="2.2" fill="rgba(255,255,255,0.65)"/>
+
+              <!-- Left chest bars -->
+              <rect x="74" y="260" width="36" height="4" rx="2" fill="rgba(56,189,248,0.12)"/>
+              <rect x="74" y="268" width="26" height="4" rx="2" fill="rgba(56,189,248,0.09)"/>
+              <rect x="74" y="276" width="30" height="4" rx="2" fill="rgba(56,189,248,0.07)"/>
+
+              <!-- Right chest bars -->
+              <rect x="150" y="260" width="36" height="4" rx="2" fill="rgba(56,189,248,0.12)"/>
+              <rect x="160" y="268" width="26" height="4" rx="2" fill="rgba(56,189,248,0.09)"/>
+              <rect x="156" y="276" width="30" height="4" rx="2" fill="rgba(56,189,248,0.07)"/>
+
+              <!-- Chest bottom dashed line -->
+              <line x1="72" y1="304" x2="188" y2="304" stroke="rgba(56,189,248,0.1)" stroke-width="0.8" stroke-dasharray="8 5"/>
+
+            </svg>
+          </div>
+
+          <!-- Data overlay at bottom -->
+          <div class="face-data">
+            <div class="face-data-row">
+              <span class="face-data-label">CONFIDENCE</span>
+              <div class="face-data-bar"><div class="face-data-fill" style="width:72%"></div></div>
+              <span class="face-data-val">72%</span>
+            </div>
+            <div class="face-data-row">
+              <span class="face-data-label">EYE CONTACT</span>
+              <div class="face-data-bar"><div class="face-data-fill" style="width:88%; animation-delay:0.3s"></div></div>
+              <span class="face-data-val">88%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="strip-inner">
+    <div class="strip-item"><span>●</span>&nbsp;Real-time Feedback</div>
+    <div class="strip-item"><span>●</span>&nbsp;Audio Analysis</div>
+    <div class="strip-item"><span>●</span>&nbsp;Body Language Detection</div>
+    <div class="strip-item"><span>●</span>&nbsp;Filler Word Tracking</div>
+    <div class="strip-item"><span>●</span>&nbsp;Adaptive Difficulty</div>
+    <div class="strip-item"><span>●</span>&nbsp;12+ Industries</div>
+    <div class="strip-item"><span>●</span>&nbsp;Behavioral + Technical</div>
+    <div class="strip-item"><span>●</span>&nbsp;Full Candidate Report</div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how-it-works">
+  <div class="section-inner">
+    <div class="section-tag">// How It Works</div>
+    <h2 class="section-title">Speak. Get Analyzed.<br>Improve Fast.</h2>
+    <p class="section-sub">Three steps from registration to a full scored report. No fluff. No filler.</p>
+
+    <div class="demo-flow">
+      <div class="demo-step">
+        <div class="step-num">01 — SPEAK</div>
+        <span class="step-icon">🎙️</span>
+        <div class="step-title">You Answer Out Loud</div>
+        <p class="step-desc">Your voice and camera are analyzed in real-time. Every filler word, every pause, every moment of hesitation — captured.</p>
+        <div class="wave-demo">
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+      </div>
+
+      <div class="demo-step">
+        <div class="step-num">02 — EVALUATE</div>
+        <span class="step-icon">🧠</span>
+        <div class="step-title">AI Evaluates Everything</div>
+        <p class="step-desc">Confidence tone, posture, eye contact, clarity, relevance, depth — scored against real hiring manager benchmarks.</p>
+        <div class="score-mini">
+          <div class="score-row">
+            <span class="score-row-label">Clarity</span>
+            <div class="score-track"><div class="score-fill" style="width:82%; background: linear-gradient(90deg, #0ea5e9, #38bdf8);"></div></div>
+            <span class="score-val">82</span>
+          </div>
+          <div class="score-row">
+            <span class="score-row-label">Confidence</span>
+            <div class="score-track"><div class="score-fill" style="width:67%; background: linear-gradient(90deg, #7c3aed, #a78bfa); animation-delay:0.3s"></div></div>
+            <span class="score-val">67</span>
+          </div>
+          <div class="score-row">
+            <span class="score-row-label">Eye Contact</span>
+            <div class="score-track"><div class="score-fill" style="width:91%; background: linear-gradient(90deg, #059669, #34d399); animation-delay:0.6s"></div></div>
+            <span class="score-val">91</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-step">
+        <div class="step-num">03 — REPORT</div>
+        <span class="step-icon">📊</span>
+        <div class="step-title">Full Candidate Report</div>
+        <p class="step-desc">Receive a detailed breakdown of every answer, your overall performance score, and exactly what to fix before the real thing.</p>
+        <div class="score-mini" style="margin-top:20px">
+          <div class="face-data-row" style="background:rgba(52,211,153,0.07); border:1px solid rgba(52,211,153,0.2); border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between;">
+            <span style="font-family:var(--mono); font-size:10px; letter-spacing:1px; color:#4d6480;">OVERALL SCORE</span>
+            <span style="font-family:var(--display); font-size:18px; font-weight:800; color:#34d399;">78 / 100</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES GRID -->
+<section id="features" class="features">
+  <div class="section-inner" style="padding: 80px 0;">
+    <div style="padding: 0 0 48px;">
+      <div class="section-tag">// Intelligence Layer</div>
+      <h2 class="section-title">What the AI Reads</h2>
+    </div>
+    <div class="features-grid">
+      <div class="feature-cell">
+        <div class="feature-icon-wrap">🔊</div>
+        <div class="feature-title">Speech Confidence</div>
+        <p class="feature-desc">Detects trembling tone, rising inflections, and vocal hesitations that signal nervousness under pressure.</p>
+      </div>
+      <div class="feature-cell">
+        <div class="feature-icon-wrap">⚡</div>
+        <div class="feature-title">Filler Words</div>
+        <p class="feature-desc">Tracks "um", "uh", "like", "you know" — and flags excessive use that undermines professional credibility.</p>
+      </div>
+      <div class="feature-cell">
+        <div class="feature-icon-wrap">👁️</div>
+        <div class="feature-title">Eye Contact</div>
+        <p class="feature-desc">Computer vision measures where your gaze lands. Consistent eye contact signals confidence and trustworthiness.</p>
+      </div>
+      <div class="feature-cell">
+        <div class="feature-icon-wrap">🧍</div>
+        <div class="feature-title">Posture & Presence</div>
+        <p class="feature-desc">Slouching, fidgeting, and closed body language are detected and factored into your total presence score.</p>
+      </div>
+      <div class="feature-cell">
+        <div class="feature-icon-wrap">🎯</div>
+        <div class="feature-title">Answer Relevance</div>
+        <p class="feature-desc">NLP checks whether your answer actually addresses what was asked — or if you drifted off-topic under stress.</p>
+      </div>
+      <div class="feature-cell">
+        <div class="feature-icon-wrap">📈</div>
+        <div class="feature-title">Adaptive Difficulty</div>
+        <p class="feature-desc">Questions get harder as you improve. The AI doesn't let you coast — it pushes until it finds your ceiling.</p>
+      </div>
+      <div class="feature-cell">
+        <div class="feature-icon-wrap">⏱️</div>
+        <div class="feature-title">Pacing Analysis</div>
+        <p class="feature-desc">Too fast and you seem rehearsed. Too slow and you seem uncertain. The AI finds your optimal speaking pace.</p>
+      </div>
+      <div class="feature-cell">
+        <div class="feature-icon-wrap">🗂️</div>
+        <div class="feature-title">Structure Scoring</div>
+        <p class="feature-desc">STAR method compliance, logical flow, and whether your answers have a clear beginning, middle, and end.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INDUSTRIES -->
+<section class="section industries" id="industries">
+  <div class="section-inner">
+    <div class="section-tag">// Domain Coverage</div>
+    <h2 class="section-title">Industry-Specific Interviews</h2>
+    <p class="section-sub">Each track is built with domain-specific questions pulled from real hiring pipelines at top companies.</p>
+    <div class="industry-grid">
+      <div class="industry-card" onclick="window.location.href='register.html'">
+        <span class="ind-icon">⚙️</span>
+        <div><div class="ind-name">Backend Engineering</div><div class="ind-count">142 questions</div></div>
+        <span class="ind-arrow">→</span>
+      </div>
+      <div class="industry-card" onclick="window.location.href='register.html'">
+        <span class="ind-icon">🖥️</span>
+        <div><div class="ind-name">Frontend Development</div><div class="ind-count">118 questions</div></div>
+        <span class="ind-arrow">→</span>
+      </div>
+      <div class="industry-card" onclick="window.location.href='register.html'">
+        <span class="ind-icon">📊</span>
+        <div><div class="ind-name">Data Science & ML</div><div class="ind-count">96 questions</div></div>
+        <span class="ind-arrow">→</span>
+      </div>
+      <div class="industry-card" onclick="window.location.href='register.html'">
+        <span class="ind-icon">☁️</span>
+        <div><div class="ind-name">Cloud & DevOps</div><div class="ind-count">84 questions</div></div>
+        <span class="ind-arrow">→</span>
+      </div>
+      <div class="industry-card" onclick="window.location.href='register.html'">
+        <span class="ind-icon">🛡️</span>
+        <div><div class="ind-name">Cybersecurity</div><div class="ind-count">72 questions</div></div>
+        <span class="ind-arrow">→</span>
+      </div>
+      <div class="industry-card" onclick="window.location.href='register.html'">
+        <span class="ind-icon">📱</span>
+        <div><div class="ind-name">Mobile Development</div><div class="ind-count">68 questions</div></div>
+        <span class="ind-arrow">→</span>
+      </div>
+      <div class="industry-card" onclick="window.location.href='register.html'">
+        <span class="ind-icon">💼</span>
+        <div><div class="ind-name">Product Management</div><div class="ind-count">110 questions</div></div>
+        <span class="ind-arrow">→</span>
+      </div>
+      <div class="industry-card" onclick="window.location.href='register.html'">
+        <span class="ind-icon">🎨</span>
+        <div><div class="ind-name">UX/UI Design</div><div class="ind-count">88 questions</div></div>
+        <span class="ind-arrow">→</span>
+      </div>
+      <div class="industry-card" onclick="window.location.href='register.html'">
+        <span class="ind-icon">🤖</span>
+        <div><div class="ind-name">AI / LLM Engineering</div><div class="ind-count">62 questions</div></div>
+        <span class="ind-arrow">→</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SEVERITY SECTION -->
+<section class="severity">
+  <div class="severity-inner">
+    <div>
+      <div class="section-tag">// No Flattery Mode</div>
+      <h2 class="section-title">It Won't Tell You<br>What You Want to Hear.</h2>
+      <p class="section-sub" style="margin-bottom:32px;">
+        Most interview tools are built to encourage. This one is built to prepare you. If your answer was weak — it tells you exactly why. If your body language screamed uncertainty — it flags it.
+      </p>
+      <p style="font-size:14px; color:var(--dim); font-family:var(--mono); line-height:2; letter-spacing:0.3px;">
+        Behavioral mode &nbsp;·&nbsp; Technical mode &nbsp;·&nbsp; Situational mode<br>
+        STAR-method grading &nbsp;·&nbsp; Cross-question consistency tracking
+      </p>
+    </div>
+    <div class="sev-terminal">
+      <div class="terminal-bar">
+        <div class="t-dot t-dot-r"></div>
+        <div class="t-dot t-dot-y"></div>
+        <div class="t-dot t-dot-g"></div>
+        <span class="terminal-title">analysis_output.log</span>
+      </div>
+      <div class="terminal-body">
+        <div class="t-line"><span class="t-prompt">AI&gt;</span> <span class="t-cmd">analyze_response --q3</span></div>
+        <div class="t-line"><span class="t-output">✓ Transcription complete (48 words)</span></div>
+        <div class="t-line"><span class="t-warn">⚠ Filler words detected: "um" ×3, "like" ×2</span></div>
+        <div class="t-line"><span class="t-err">✗ Eye contact: 34% — below threshold (60%)</span></div>
+        <div class="t-line"><span class="t-warn">⚠ Confidence score: 58 — hesitant tone detected</span></div>
+        <div class="t-line"><span class="t-output">✓ Answer relevance: 79% — on topic</span></div>
+        <div class="t-line"><span class="t-err">✗ STAR structure: missing Result component</span></div>
+        <div class="t-line"><span class="t-output">─────────────────────────</span></div>
+        <div class="t-line"><span class="t-prompt">AI&gt;</span> <span class="t-cmd">final_score</span></div>
+        <div class="t-line"><span class="t-warn">→ Score: 61/100 — Needs improvement</span></div>
+        <div class="t-line"><span class="t-prompt">AI&gt;</span> <span class="t-cursor"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="cta-glow"></div>
+  <span class="cta-tag">// Ready to be tested?</span>
+  <h2 class="cta-title">Interviews are not games.<br>Don't practice like they are.</h2>
+  <p class="cta-sub">
+    Register in 60 seconds. Get AI-generated questions tailored to your role and qualifications. Start getting real feedback immediately.
+  </p>
+  <div class="cta-actions">
+    <a href="register.html" class="btn-hero-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polygon points="5,3 19,12 5,21" fill="currentColor"/></svg>
+      Start Mock Interview
+    </a>
+    <a href="register.html" class="btn-hero-secondary">Try 3 Questions Free →</a>
+  </div>
+  <div class="warning-badge">
+    ⚠ &nbsp;No sign-up required for free trial &nbsp;·&nbsp; Takes 60 seconds to begin
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="logo" style="font-size:15px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L21.5 7.5V16.5L12 22L2.5 16.5V7.5L12 2Z" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+      </svg>
+      InterviewAI
+    </div>
+    <div class="footer-copy">© 2026 InterviewAI · AI-Powered Interview Simulation</div>
+    <div class="footer-links">
+      <a href="register.html">Register</a>
+      <a href="interview.html">Interview</a>
+      <a href="report.html">Report</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice + Video Interview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="noise-overlay"></div>
+
+<!-- Header -->
+<header class="site-header">
+    <div class="header-inner">
+        <div class="logo">
+            <svg class="logo-hex" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L21.5 7.5V16.5L12 22L2.5 16.5V7.5L12 2Z"
+                      stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="12" cy="12" r="3" fill="currentColor"/>
+            </svg>
+            <span class="logo-text">InterviewAI</span>
+        </div>
+        <div class="header-meta">
+            <span class="mono chip" id="progressText">Q 0 / 5</span>
+            <span class="status-pill idle" id="statusPill">IDLE</span>
+        </div>
+    </div>
+</header>
+
+<!-- Main -->
+<main class="container">
+
+    <!-- Hero -->
+    <section class="hero" id="heroSection">
+        <div class="hero-tag mono">v4.0 · Voice + Video Analysis</div>
+        <h1>Voice + Video Interview<br><em>Simulation</em></h1>
+        <p class="hero-sub">
+            Answer out loud while being recorded. Get instant feedback on speech quality,
+            body language, eye contact, posture, and professional presence.
+        </p>
+    </section>
+
+    <!-- AI Orb (shown during interview, hidden initially) -->
+    <div id="aiOrbSection" style="display:none; text-align:center; padding:32px 0 40px;">
+        <div class="ai-orb-container">
+            <div class="ai-orb" id="aiOrb">
+                <div class="orb-ring orb-ring-1"></div>
+                <div class="orb-ring orb-ring-2"></div>
+                <div class="orb-ring orb-ring-3"></div>
+                <div class="orb-core">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L21.5 7.5V16.5L12 22L2.5 16.5V7.5L12 2Z" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                    </svg>
+                </div>
+            </div>
+            <p class="orb-label mono" id="orbLabel">Preparing…</p>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-row">
+        <button id="startBtn" class="btn btn-primary" onclick="startInterview()">
+            <span class="btn-icon">▶</span>&nbsp;Start Interview
+        </button>
+        <button id="skipBtn" class="btn btn-secondary" onclick="skipQuestion()" disabled>
+            <span class="btn-icon">⏭</span>&nbsp;Skip Question
+        </button>
+        <button id="stopBtn" class="btn btn-danger" onclick="stopInterview()" disabled>
+            <span class="btn-icon">■</span>&nbsp;End Early
+        </button>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+        <span id="recordingIndicator" class="indicator"></span>
+        <span id="statusText" class="status-label">Ready to start</span>
+        <span class="flex-grow"></span>
+        <span class="mono dim" id="progressLabel">Question 0 of 5</span>
+    </div>
+
+    <!-- Real-time Distraction Alert -->
+    <div id="distractionAlert" style="display:none; text-align:center; background:#ef4444; color:white; padding:12px; border-radius:8px; font-weight:600; margin-bottom:16px; box-shadow:0 4px 12px rgba(239, 68, 68, 0.4); letter-spacing:0.5px;">
+        ⚠️ Distraction Detected: Please ensure exactly ONE face is clearly visible!
+    </div>
+
+    <!-- Video preview (shows during recording) -->
+    <div class="card card-video" id="videoPreviewCard" style="display:none;">
+        <div class="card-eyebrow">📹 &nbsp;CAMERA PREVIEW</div>
+        <video id="videoPreview" autoplay muted playsinline style="width:100%; max-width:640px; border-radius:8px;"></video>
+    </div>
+
+    <!-- Q & A -->
+    <div class="qa-grid">
+        <div class="card card-question">
+            <div class="card-eyebrow">QUESTION</div>
+            <p id="questionText">Click <strong>Start Interview</strong> to begin.</p>
+        </div>
+        <div class="card card-answer">
+            <div class="card-eyebrow">YOUR ANSWER</div>
+            <p id="answerText">Waiting for your response…</p>
+        </div>
+    </div>
+
+    <!-- Tone Analysis -->
+    <div class="card card-tone reveal" id="toneAnalysisBox" style="display:none;">
+        <div class="card-eyebrow">🎵 &nbsp;TONE ANALYSIS</div>
+        <div id="toneAnalysisContent"></div>
+    </div>
+
+    <!-- AI Audio Score -->
+    <div class="card card-score reveal" id="scoreBox" style="display:none;">
+        <div class="card-eyebrow">📊 &nbsp;AUDIO ANALYSIS</div>
+        <div id="scoreContent"></div>
+    </div>
+
+    <!-- Video Body Language Analysis -->
+    <div class="card card-video-analysis reveal" id="videoAnalysisBox" style="display:none;">
+        <div class="card-eyebrow">🎥 &nbsp;BODY LANGUAGE ANALYSIS</div>
+        <div id="videoAnalysisContent"></div>
+    </div>
+
+    <!-- Summary -->
+    <div class="card card-summary reveal" id="feedbackBox" style="display:none;">
+        <div class="card-eyebrow">📋 &nbsp;INTERVIEW SUMMARY</div>
+        <div id="summaryContent"></div>
+    </div>
+
+    <!-- Full Report -->
+    <div class="card card-report reveal" id="toneReportBox" style="display:none;">
+        <div class="card-eyebrow">🧠 &nbsp;FULL CANDIDATE REPORT</div>
+        <div id="toneReportContent"></div>
+    </div>
+
+</main>
+
+<!-- Footer -->
+<footer class="site-footer">
+    <span class="mono dim">
+        <kbd>Space</kbd> stop recording &nbsp;·&nbsp; <kbd>Esc</kbd> end interview
+    </span>
+</footer>
+
+<style>
+/* ── AI Orb ── */
+.ai-orb-container {
+    display: flex; flex-direction: column; align-items: center; gap: 24px;
+}
+.ai-orb {
+    position: relative;
+    width: 160px; height: 160px;
+    display: flex; align-items: center; justify-content: center;
+}
+.orb-core {
+    position: relative; z-index: 10;
+    width: 64px; height: 64px;
+    background: radial-gradient(135deg, rgba(56,189,248,0.3) 0%, rgba(14,165,233,0.15) 100%);
+    border: 1.5px solid rgba(56,189,248,0.5);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #38bdf8;
+    box-shadow: 0 0 24px rgba(56,189,248,0.25), inset 0 0 16px rgba(56,189,248,0.1);
+    transition: all 0.4s ease;
+}
+.orb-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(56,189,248,0.18);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+}
+.orb-ring-1 { width: 90px;  height: 90px;  }
+.orb-ring-2 { width: 120px; height: 120px; }
+.orb-ring-3 { width: 155px; height: 155px; }
+
+/* Idle pulse */
+.ai-orb.orb-idle .orb-ring-1 { animation: orbPulse 3s ease-in-out 0s infinite; }
+.ai-orb.orb-idle .orb-ring-2 { animation: orbPulse 3s ease-in-out 0.5s infinite; }
+.ai-orb.orb-idle .orb-ring-3 { animation: orbPulse 3s ease-in-out 1s infinite; }
+.ai-orb.orb-idle .orb-core   { animation: orbGlow 3s ease-in-out infinite; }
+
+/* Talking / zoom-out on question */
+.ai-orb.orb-talking .orb-ring-1 { animation: orbZoom 1.2s cubic-bezier(0.16,1,0.3,1) 0s infinite; border-color: rgba(56,189,248,0.4); }
+.ai-orb.orb-talking .orb-ring-2 { animation: orbZoom 1.2s cubic-bezier(0.16,1,0.3,1) 0.2s infinite; border-color: rgba(56,189,248,0.3); }
+.ai-orb.orb-talking .orb-ring-3 { animation: orbZoom 1.2s cubic-bezier(0.16,1,0.3,1) 0.4s infinite; border-color: rgba(56,189,248,0.2); }
+.ai-orb.orb-talking .orb-core   {
+    box-shadow: 0 0 40px rgba(56,189,248,0.5), 0 0 80px rgba(56,189,248,0.2), inset 0 0 20px rgba(56,189,248,0.2);
+    border-color: rgba(56,189,248,0.9);
+    animation: orbCorePulse 0.8s ease-in-out infinite;
+}
+
+/* Recording state */
+.ai-orb.orb-recording .orb-ring-1 { animation: orbRec 1s ease-in-out 0s infinite; border-color: rgba(248,113,113,0.4); }
+.ai-orb.orb-recording .orb-ring-2 { animation: orbRec 1s ease-in-out 0.15s infinite; border-color: rgba(248,113,113,0.3); }
+.ai-orb.orb-recording .orb-ring-3 { animation: orbRec 1s ease-in-out 0.3s infinite; border-color: rgba(248,113,113,0.2); }
+.ai-orb.orb-recording .orb-core   { 
+    border-color: rgba(248,113,113,0.7);
+    box-shadow: 0 0 28px rgba(248,113,113,0.35), inset 0 0 16px rgba(248,113,113,0.15);
+    color: #f87171;
+    animation: orbRecGlow 1s ease-in-out infinite;
+}
+
+@keyframes orbPulse {
+    0%   { transform: translate(-50%,-50%) scale(0.85); opacity: 0; }
+    30%  { opacity: 0.55; }
+    100% { transform: translate(-50%,-50%) scale(1.35); opacity: 0; }
+}
+@keyframes orbZoom {
+    0%   { transform: translate(-50%,-50%) scale(0.7); opacity: 0; }
+    20%  { opacity: 0.7; }
+    100% { transform: translate(-50%,-50%) scale(1.5); opacity: 0; }
+}
+@keyframes orbRec {
+    0%   { transform: translate(-50%,-50%) scale(0.8); opacity: 0; }
+    40%  { opacity: 0.6; }
+    100% { transform: translate(-50%,-50%) scale(1.3); opacity: 0; }
+}
+@keyframes orbGlow {
+    0%,100% { box-shadow: 0 0 20px rgba(56,189,248,0.2), inset 0 0 12px rgba(56,189,248,0.08); }
+    50%      { box-shadow: 0 0 36px rgba(56,189,248,0.4), inset 0 0 20px rgba(56,189,248,0.15); }
+}
+@keyframes orbCorePulse {
+    0%,100% { transform: scale(1); }
+    50%      { transform: scale(1.08); }
+}
+@keyframes orbRecGlow {
+    0%,100% { box-shadow: 0 0 20px rgba(248,113,113,0.25), inset 0 0 12px rgba(248,113,113,0.1); }
+    50%      { box-shadow: 0 0 40px rgba(248,113,113,0.5), inset 0 0 20px rgba(248,113,113,0.2); }
+}
+
+.orb-label {
+    font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-dim); transition: color 0.3s;
+}
+.orb-label.talking  { color: var(--accent); }
+.orb-label.recording{ color: var(--red); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+<script src="script.js"></script>
+</body>
+</html>

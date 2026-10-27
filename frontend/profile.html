@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Candidate Profile — InterviewAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #060b13;
+      --surface:     #0d1623;
+      --surface2:    #111d2e;
+      --border:      rgba(100,160,255,0.10);
+      --border-hi:   rgba(56,189,248,0.35);
+      --accent:      #38bdf8;
+      --accent2:     #0ea5e9;
+      --text:        #e2eaf5;
+      --text-dim:    #556b87;
+      --text-mid:    #8ba0bb;
+      --green:       #34d399;
+      --green-dim:   rgba(52,211,153,0.12);
+      --yellow:      #fbbf24;
+      --yellow-dim:  rgba(251,191,36,0.12);
+      --red:         #f87171;
+      --red-dim:     rgba(248,113,113,0.10);
+      --purple:      #a78bfa;
+      --purple-dim:  rgba(167,139,250,0.12);
+      --cyan:        #22d3ee;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Noise + glow bg ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 15% 40%, rgba(56,189,248,0.06) 0%, transparent 65%),
+        radial-gradient(ellipse 60% 60% at 85% 80%, rgba(167,139,250,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(6,11,19,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 58px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 9px; }
+    .logo svg { color: var(--accent); }
+    .logo-text { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; }
+    .header-nav { display: flex; gap: 4px; }
+    .nav-link {
+      padding: 6px 14px; border-radius: 8px;
+      font-size: 13px; font-weight: 500; color: var(--text-mid);
+      text-decoration: none; transition: all .2s;
+    }
+    .nav-link:hover { background: rgba(56,189,248,0.08); color: var(--accent); }
+    .nav-link.active { background: rgba(56,189,248,0.1); color: var(--accent); }
+
+    /* ── Layout ── */
+    .page-wrap {
+      position: relative; z-index: 1;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 0;
+      min-height: calc(100vh - 58px);
+    }
+
+    /* ════════════════════════════════
+       SIDEBAR
+    ════════════════════════════════ */
+    .sidebar {
+      border-right: 1px solid var(--border);
+      padding: 32px 24px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      background: rgba(13,22,35,0.5);
+    }
+
+    /* Photo */
+    .avatar-wrap {
+      position: relative;
+      width: 110px; height: 110px;
+      flex-shrink: 0;
+    }
+    .avatar-ring {
+      position: absolute; inset: -4px;
+      border-radius: 50%;
+      background: conic-gradient(var(--accent), var(--purple), var(--green), var(--accent));
+      animation: rotateRing 6s linear infinite;
+    }
+    @keyframes rotateRing { to { transform: rotate(360deg); } }
+    .avatar-ring::after {
+      content: '';
+      position: absolute; inset: 3px;
+      background: var(--bg);
+      border-radius: 50%;
+    }
+    .avatar-img {
+      position: relative; z-index: 2;
+      width: 110px; height: 110px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--surface);
+      background: var(--surface2);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .avatar-placeholder {
+      position: relative; z-index: 2;
+      width: 110px; height: 110px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0d1a2d, #1a2a45);
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-size: 36px; font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -1px;
+      cursor: pointer;
+      transition: all .3s;
+    }
+    .avatar-placeholder:hover { border-color: var(--border-hi); }
+    .avatar-upload-btn {
+      position: absolute; bottom: 2px; right: 2px; z-index: 10;
+      width: 30px; height: 30px;
+      background: var(--accent2);
+      border: 2px solid var(--bg);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 13px;
+      transition: transform .2s;
+    }
+    .avatar-upload-btn:hover { transform: scale(1.15); }
+    #avatarInput { display: none; }
+
+    /* User info */
+    .user-info { text-align: center; width: 100%; }
+    .user-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px; font-weight: 800;
+      letter-spacing: -0.4px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .user-email {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; color: var(--text-dim);
+      margin-bottom: 14px;
+      word-break: break-all;
+    }
+    .user-qual {
+      font-size: 12px; color: var(--text-mid);
+      line-height: 1.6;
+      background: rgba(56,189,248,0.05);
+      border: 1px solid rgba(56,189,248,0.12);
+      border-radius: 10px;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .qual-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--accent);
+      display: block; margin-bottom: 5px;
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; width: 100%;
+    }
+    .stat-box {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 14px;
+      text-align: center;
+    }
+    .stat-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px; font-weight: 800;
+      color: var(--accent); line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-label {
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text-dim); font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* Sidebar section divider */
+    .sidebar-divider {
+      width: 100%; height: 1px;
+      background: var(--border);
+    }
+
+    /* Skill tags */
+    .skill-tags {
+      width: 100%;
+    }
+    .skill-tags-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text-dim); margin-bottom: 10px;
+    }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 11px; font-weight: 500;
+      background: rgba(56,189,248,0.08);
+      border: 1px solid rgba(56,189,248,0.18);
+      color: var(--accent);
+    }
+    .tag.green { background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.2); color: var(--green); }
+    .tag.purple { background: rgba(167,139,250,0.08); border-color: rgba(167,139,250,0.2); color: var(--purple); }
+
+    /* ════════════════════════════════
+       MAIN CONTENT
+    ════════════════════════════════ */
+    .main-content {
+      padding: 32px 36px 60px;
+      display: flex; flex-direction: column; gap: 36px;
+    }
+
+    .section-heading {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px; font-weight: 800;
+      letter-spacing: -0.3px;
+      color: var(--text);
+      margin-bottom: 6px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-heading::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .section-sub {
+      font-size: 12px; color: var(--text-dim);
+      font-family: 'IBM Plex Mono', monospace;
+      margin-bottom: 20px;
+    }
+
+    /* ── Interview Activity Grid ── */
+   
+    .month-labels {
+      display: flex; gap: 4px; margin-bottom: 6px; padding-left: 0px;
+    }
+    .month-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; color: var(--text-dim); letter-spacing: .5px;
+      min-width: 40px;
+    }
+
+    .heatmap-outer {
+      display: flex; gap: 14px; align-items: flex-start;
+    }
+    .day-labels {
+      display: flex; flex-direction: column; gap: 3px; padding-top: 2px;
+    }
+    .day-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px; color: var(--text-dim);
+      height: 13px; display: flex; align-items: center;
+    }
+    .heatmap {
+      display: flex; gap: 3px; flex-wrap: nowrap; overflow-x: auto;
+      padding-bottom: 8px;
+    }
+    .heatmap::-webkit-scrollbar { height: 4px; }
+    .heatmap::-webkit-scrollbar-track { background: transparent; }
+    .heatmap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .hm-week { display: flex; flex-direction: column; gap: 3px; }
+    .hm-cell {
+      width: 13px; height: 13px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.05);
+      cursor: pointer;
+      transition: transform .15s, border-color .15s;
+      position: relative;
+    }
+    .hm-cell:hover { transform: scale(1.4); border-color: rgba(255,255,255,0.3); z-index: 5; }
+    /* 2 colors only: blue = attempted, green = completed */
+    .hm-cell.active { background: #e90e0e; border-color: #f83838; box-shadow: 0 0 5px rgba(56,189,248,0.35); }
+    .hm-cell.done   { background: #34d399; border-color: #6ee7b7; box-shadow: 0 0 5px rgba(52,211,153,0.35); }
+
+    /* Legend */
+    .heatmap-legend {
+      display: flex; align-items: center; gap: 6px; margin-top: 10px; justify-content: flex-end;
+    }
+    .legend-label { font-size: 11px; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; }
+    .legend-cells { display: flex; gap: 3px; }
+    .legend-cell { width: 12px; height: 12px; border-radius: 2px; }
+
+    /* ── Interview Cards ── */
+    .sessions-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;
+    }
+    .session-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .2s, transform .2s;
+      cursor: default;
+    }
+    .session-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .session-card.completed::before { background: linear-gradient(90deg, var(--green), transparent); }
+    .session-card.completed .card-title { text-decoration: line-through; color: var(--text-dim); }
+    .session-card.completed .card-desc { text-decoration: line-through; opacity: 0.7; }
+    .session-card.active::before   { background: linear-gradient(90deg, var(--accent), transparent); }
+    .session-card.locked::before   { background: linear-gradient(90deg, var(--text-dim), transparent); }
+    .session-card:hover { border-color: rgba(56,189,248,0.25); transform: translateY(-2px); }
+
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .card-icon { font-size: 22px; }
+    .card-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; font-weight: 600; letter-spacing: .8px;
+      padding: 3px 9px; border-radius: 100px;
+    }
+    .badge-done   { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.25); }
+    .badge-active { background: rgba(56,189,248,0.1); color: var(--accent); border: 1px solid rgba(56,189,248,0.25); }
+    .badge-locked { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border); }
+
+    .card-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 15px; font-weight: 700;
+      color: var(--text); margin-bottom: 5px;
+    }
+    .card-desc { font-size: 12px; color: var(--text-mid); line-height: 1.5; margin-bottom: 14px; }
+
+    .card-score {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .score-bar-wrap {
+      flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;
+    }
+    .score-bar { height: 100%; border-radius: 4px; transition: width 1s ease; }
+    .score-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .score-green  { background: var(--green); }
+    .score-blue   { background: var(--accent); }
+    .score-yellow { background: var(--yellow); }
+    .score-red    { background: var(--red); }
+    .color-green  { color: var(--green); }
+    .color-blue   { color: var(--accent); }
+    .color-yellow { color: var(--yellow); }
+
+    /* ── Basic Info Form ── */
+    .info-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 28px;
+      position: relative;
+    }
+    .info-form::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      border-radius: 16px 16px 0 0;
+    }
+
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+    }
+    .form-field { display: flex; flex-direction: column; gap: 7px; }
+    .form-field.full { grid-column: 1 / -1; }
+
+    .form-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text-mid);
+    }
+    .form-input, .form-select, .form-textarea {
+      background: #0a1525;
+      border: 1px solid rgba(100,160,255,0.12);
+      color: var(--text);
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      width: 100%;
+      resize: vertical;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: rgba(56,189,248,0.45);
+      box-shadow: 0 0 0 3px rgba(56,189,248,0.07);
+    }
+    .form-input::placeholder, .form-textarea::placeholder { color: #2a3d55; }
+    .form-select option { background: #0d1623; }
+
+    .form-actions {
+      display: flex; gap: 12px; align-items: center; margin-top: 6px;
+    }
+    .btn-save {
+      padding: 11px 28px;
+      background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+      border: none; color: #07131f;
+      font-weight: 700; font-family: 'Syne', sans-serif;
+      font-size: 14px; letter-spacing: .3px;
+      border-radius: 10px; cursor: pointer;
+      transition: all .2s;
+      box-shadow: 0 4px 14px rgba(56,189,248,0.2);
+    }
+    .btn-save:hover { transform: translateY(-2px); box-shadow: 0 7px 20px rgba(56,189,248,0.3); }
+    .btn-save:active { transform: translateY(0); }
+    .btn-cancel {
+      padding: 11px 20px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-mid); font-size: 13px;
+      border-radius: 10px; cursor: pointer; transition: all .2s;
+    }
+    .btn-cancel:hover { border-color: var(--border-hi); color: var(--text); }
+
+    .save-feedback {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px; color: var(--green);
+      opacity: 0; transition: opacity .4s;
+    }
+    .save-feedback.show { opacity: 1; }
+
+    /* Tabs */
+    .tab-row { display: flex; gap: 4px; margin-bottom: 20px; }
+    .tab {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid transparent;
+      font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all .2s;
+      color: var(--text-dim); background: transparent;
+    }
+    .tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .tab.active-tab {
+      background: rgba(56,189,248,0.1);
+      border-color: rgba(56,189,248,0.2);
+      color: var(--accent);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Tooltip */
+    .hm-cell[data-tip]:hover::after {
+      content: attr(data-tip);
+      position: absolute; bottom: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%);
+      background: #1e3a5f; color: #c8ddf0;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; padding: 4px 8px; border-radius: 6px;
+      white-space: nowrap; pointer-events: none; z-index: 20;
+      border: 1px solid rgba(56,189,248,0.2);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .page-wrap { grid-template-columns: 1fr; }
+      .sidebar { border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; flex-wrap: wrap; justify-content: center; padding: 24px 20px; }
+      .main-content { padding: 24px 20px; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="site-header">
+  <div class="logo">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L21.5 7.5V16.5L12 22L2.5 16.5V7.5L12 2Z" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="12" cy="12" r="3" fill="currentColor"/>
+    </svg>
+    <span class="logo-text">InterviewAI</span>
+  </div>
+  <nav class="header-nav">
+    <a href="interview.html" class="nav-link">Interview</a>
+    <a href="register.html" class="nav-link">Register</a>
+    <a href="profile.html" class="nav-link active">Profile</a>
+  </nav>
+</header>
+
+<div class="page-wrap">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar">
+
+    <!-- Avatar -->
+    <div class="avatar-wrap">
+      <div class="avatar-ring"></div>
+      <div class="avatar-placeholder" id="avatarDisplay" onclick="document.getElementById('avatarInput').click()">
+        <span id="avatarInitial">?</span>
+      </div>
+      <div class="avatar-upload-btn" onclick="document.getElementById('avatarInput').click()" title="Upload photo">📷</div>
+      <input type="file" id="avatarInput" accept="image/*">
+    </div>
+
+    <!-- Info -->
+    <div class="user-info">
+      <div class="user-name" id="sidebarName">Your Name</div>
+      <div class="user-email" id="sidebarEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="21584e545361444c40484d0f424e4c">[email&#160;protected]</a></div>
+      <div class="user-qual">
+        <span class="qual-label">Qualification</span>
+        <span id="sidebarQual">Not set yet</span>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-num" id="statCompleted">0</div>
+        <div class="stat-label">Interviews</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="statStreak" style="color:var(--green);">0</div>
+        <div class="stat-label">Day Streak</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num"><span id="statAvgScore">0</span></div>
+        <div class="stat-label">Avg Score</div>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- Skills -->
+    <div class="skill-tags">
+      <div class="skill-tags-label">Focus Areas</div>
+      <div class="tags" id="skillTagsWrap">
+        <span class="tag">Communication</span>
+        <span class="tag green">Confidence</span>
+        <span class="tag purple">Technical</span>
+        <span class="tag">Eye Contact</span>
+        <span class="tag green">Posture</span>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <main class="main-content">
+
+    <!-- Tabs -->
+    <div class="tab-row">
+      <button class="tab active-tab" onclick="switchTab('activity')">📊 Activity</button>
+      <button class="tab" onclick="switchTab('sessions')">🎯 Sessions</button>
+      <button class="tab" onclick="switchTab('editprofile')">✏️ Edit Profile</button>
+    </div>
+
+    <!-- ── TAB: Activity (Heatmap) ── -->
+    <div class="tab-panel active" id="tab-activity">
+
+      <div class="section-heading">Interview Activity</div>
+      <p class="section-sub">// last 52 weeks — 🟦 blue = attempted · 🟩 green = completed · today & yesterday always marked</p>
+
+      <div class="heatmap-outer">
+        <div class="day-labels">
+          <div class="day-label"></div>
+          <div class="day-label">Mon</div>
+          <div class="day-label"></div>
+          <div class="day-label">Wed</div>
+          <div class="day-label"></div>
+          <div class="day-label">Fri</div>
+          <div class="day-label"></div>
+        </div>
+        <div>
+          <div class="month-labels" id="monthLabels"></div>
+          <div class="heatmap" id="heatmap"></div>
+        </div>
+      </div>
+
+      <div class="heatmap-legend">
+        <span class="legend-label">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#0ea5e9;vertical-align:middle;margin-right:5px;"></span>Attempted
+        </span>
+        &nbsp;&nbsp;
+        <span class="legend-label" style="color:var(--green);">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#34d399;vertical-align:middle;margin-right:5px;"></span>Completed
+        </span>
+      </div>
+
+    </div>
+
+    <!-- ── TAB: Sessions ── -->
+    <div class="tab-panel" id="tab-sessions">
+
+      <div class="section-heading">Interview Sessions</div>
+      <p class="section-sub">// all practice rounds — score bars show performance per session</p>
+
+      <div class="sessions-grid" id="sessionsGrid">
+        <!-- populated by JS -->
+      </div>
+
+    </div>
+
+    <!-- ── TAB: Edit Profile ── -->
+    <div class="tab-panel" id="tab-editprofile">
+
+      <div class="section-heading">Basic Information</div>
+      <p class="section-sub">// fill in your details — saved locally and loaded at interview start</p>
+
+      <div class="info-form">
+        <form id="profileForm" onsubmit="saveProfile(event)">
+          <div class="form-grid">
+
+            <div class="form-field">
+              <label class="form-label">Full Name</label>
+              <input class="form-input" type="text" id="pName" placeholder="Jane Doe">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Email Address</label>
+              <input class="form-input" type="email" id="pEmail" placeholder="jane@example.com">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Phone Number</label>
+              <input class="form-input" type="tel" id="pPhone" placeholder="+91 98765 43210">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Location</label>
+              <input class="form-input" type="text" id="pLocation" placeholder="Mumbai, India">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Current Role</label>
+              <input class="form-input" type="text" id="pRole" placeholder="Software Engineer">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Experience</label>
+              <select class="form-select" id="pExp">
+                <option value="">Select years</option>
+                <option value="Fresher (0 yr)">Fresher (0 yr)</option>
+                <option value="1–2 years">1–2 years</option>
+                <option value="3–5 years">3–5 years</option>
+                <option value="6–10 years">6–10 years</option>
+                <option value="10+ years">10+ years</option>
+              </select>
+            </div>
+
+            <div class="form-field full">
+              <label class="form-label">Qualifications</label>
+              <input class="form-input" type="text" id="pQual" placeholder="B.Tech Computer Science, AWS Certified, 3 yrs Python…">
+            </div>
+
+            <div class="form-field full">
+              <label class="form-label">Skills / Tech Stack</label>
+              <input class="form-input" type="text" id="pSkills" placeholder="Python, FastAPI, React, PostgreSQL, Docker…">
+            </div>
+
+            <div class="form-field full">
+              <label class="form-label">Target Job Description</label>
+              <textarea class="form-textarea" id="pJobDesc" rows="4"
+                placeholder="Paste the job description or role you're preparing for…"></textarea>
+            </div>
+
+            <div class="form-field full">
+              <label class="form-label">Short Bio</label>
+              <textarea class="form-textarea" id="pBio" rows="3"
+                placeholder="A brief note about yourself, your goals, what you're working towards…"></textarea>
+            </div>
+
+          </div>
+
+          <div style="height:20px;"></div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-save">Save Profile</button>
+            <button type="button" class="btn-cancel" onclick="loadProfile()">Reset</button>
+            <span class="save-feedback" id="saveFeedback">✓ Profile saved!</span>
+          </div>
+        </form>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ══════════════════════════════════════════════
+// TAB SWITCHER
+// ══════════════════════════════════════════════
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active-tab'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.currentTarget.classList.add('active-tab');
+}
+
+// ══════════════════════════════════════════════
+// AVATAR UPLOAD
+// ══════════════════════════════════════════════
+document.getElementById('avatarInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const disp = document.getElementById('avatarDisplay');
+    disp.style.backgroundImage = `url(${ev.target.result})`;
+    disp.style.backgroundSize  = 'cover';
+    disp.style.backgroundPosition = 'center';
+    document.getElementById('avatarInitial').style.display = 'none';
+    localStorage.setItem('profileAvatar', ev.target.result);
+  };
+  reader.readAsDataURL(file);
+});
+
+function loadAvatar() {
+  const saved = localStorage.getItem('profileAvatar');
+  if (saved) {
+    const disp = document.getElementById('avatarDisplay');
+    disp.style.backgroundImage = `url(${saved})`;
+    disp.style.backgroundSize  = 'cover';
+    disp.style.backgroundPosition = 'center';
+    document.getElementById('avatarInitial').style.display = 'none';
+  }
+}
+
+// ══════════════════════════════════════════════
+// PROFILE LOAD / SAVE
+// ══════════════════════════════════════════════
+const fields = ['pName','pEmail','pPhone','pLocation','pRole','pExp','pQual','pSkills','pJobDesc','pBio'];
+
+function loadProfile() {
+  // Pull from sessionStorage (set by register.html) as defaults
+  const ssName  = sessionStorage.getItem('candidateName')  || '';
+  const ssEmail = sessionStorage.getItem('candidateEmail') || '';
+  const ssQual  = '';
+
+  const saved = JSON.parse(localStorage.getItem('userProfile') || '{}');
+
+  document.getElementById('pName').value    = saved.pName    || ssName  || '';
+  document.getElementById('pEmail').value   = saved.pEmail   || ssEmail || '';
+  document.getElementById('pPhone').value   = saved.pPhone   || '';
+  document.getElementById('pLocation').value= saved.pLocation|| '';
+  document.getElementById('pRole').value    = saved.pRole    || '';
+  document.getElementById('pExp').value     = saved.pExp     || '';
+  document.getElementById('pQual').value    = saved.pQual    || sessionStorage.getItem('candidateQual') || '';
+  document.getElementById('pSkills').value  = saved.pSkills  || '';
+  document.getElementById('pJobDesc').value = saved.pJobDesc || '';
+  document.getElementById('pBio').value     = saved.pBio     || '';
+
+  updateSidebar(saved, ssName, ssEmail);
+}
+
+function updateSidebar(data, fallbackName, fallbackEmail) {
+  const name  = data.pName  || fallbackName  || 'Your Name';
+  const email = data.pEmail || fallbackEmail || 'your@email.com';
+  const qual  = data.pQual  || 'Not set yet';
+  const skills = data.pSkills || '';
+
+  document.getElementById('sidebarName').textContent  = name;
+  document.getElementById('sidebarEmail').textContent = email;
+  document.getElementById('sidebarQual').textContent  = qual;
+
+  // Initial
+  const initial = name.trim() ? name.trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase() : '?';
+  document.getElementById('avatarInitial').textContent = initial;
+
+  // Skill tags from skills field
+  if (skills) {
+    const tagWrap = document.getElementById('skillTagsWrap');
+    const colors = ['', 'green', 'purple', '', 'green', 'purple'];
+    const parsed = skills.split(',').map(s=>s.trim()).filter(Boolean).slice(0, 8);
+    tagWrap.innerHTML = parsed.map((s,i) =>
+      `<span class="tag ${colors[i%colors.length]}">${s}</span>`
+    ).join('');
+  }
+}
+
+function saveProfile(e) {
+  e.preventDefault();
+  const data = {};
+  fields.forEach(id => { data[id] = document.getElementById(id).value.trim(); });
+  localStorage.setItem('userProfile', JSON.stringify(data));
+
+  // Also push name/email/qual to sessionStorage for interview.html
+  if (data.pName)  sessionStorage.setItem('candidateName',  data.pName);
+  if (data.pEmail) sessionStorage.setItem('candidateEmail', data.pEmail);
+
+  updateSidebar(data, '', '');
+
+  const fb = document.getElementById('saveFeedback');
+  fb.classList.add('show');
+  setTimeout(() => fb.classList.remove('show'), 2500);
+}
+
+// ══════════════════════════════════════════════
+// HEATMAP GENERATOR
+// ══════════════════════════════════════════════
+function buildHeatmap() {
+  const heatmap = document.getElementById('heatmap');
+  const monthLabels = document.getElementById('monthLabels');
+  heatmap.innerHTML = '';
+  monthLabels.innerHTML = '';
+
+  // Load stored activity
+  const activity = JSON.parse(localStorage.getItem('interviewActivity') || '{}');
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // Always ensure today and yesterday are marked as completed
+  const todayKey     = today.toISOString().slice(0,10);
+  const yesterdayKey = yesterday.toISOString().slice(0,10);
+  if (!activity[todayKey])     activity[todayKey]     = { count: 1, done: true };
+  if (!activity[yesterdayKey]) activity[yesterdayKey] = { count: 1, done: true };
+
+  const WEEKS = 52;
+  const DAYS  = 7;
+
+  // Start 52 weeks ago, aligned to Sunday
+  const start = new Date(today);
+  start.setDate(start.getDate() - (WEEKS * DAYS - 1));
+  start.setDate(start.getDate() - start.getDay());
+
+  const months = [];
+  let lastMonth = -1;
+  let colIndex  = 0;
+
+  for (let w = 0; w < WEEKS; w++) {
+    const weekCol = document.createElement('div');
+    weekCol.className = 'hm-week';
+
+    for (let d = 0; d < DAYS; d++) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + w * DAYS + d);
+      date.setHours(0,0,0,0);
+
+      const key  = date.toISOString().slice(0,10);
+      const info = activity[key] || { count: 0, done: false };
+
+      const cell = document.createElement('div');
+      cell.className = 'hm-cell';
+
+      if (info.count > 0 || info.done) {
+        // 2 colors: green if completed, blue if only attempted
+        cell.classList.add(info.done ? 'done' : 'active');
+      }
+
+      // Tooltip
+      const count = info.count || 0;
+      let tip = key;
+      if (key === todayKey)     tip = `Today — ${info.done ? '✓ Completed' : 'Attempted'}`;
+      else if (key === yesterdayKey) tip = `Yesterday — ${info.done ? '✓ Completed' : 'Attempted'}`;
+      else if (count > 0) tip = `${key} — ${count} session${count>1?'s':''} · ${info.done?'✓ Completed':'Attempted'}`;
+      cell.setAttribute('data-tip', tip);
+
+      // Future cells dimmed
+      if (date > today) cell.style.opacity = '0.25';
+
+      weekCol.appendChild(cell);
+
+      // Month label
+      if (date.getMonth() !== lastMonth && d === 0) {
+        lastMonth = date.getMonth();
+        months.push({ col: colIndex, label: date.toLocaleString('default', { month: 'short' }) });
+      }
+    }
+
+    heatmap.appendChild(weekCol);
+    colIndex++;
+  }
+
+  // Render month labels
+  months.forEach((m, i) => {
+    const span = document.createElement('span');
+    span.className = 'month-label';
+    span.textContent = m.label;
+    const nextCol = months[i+1] ? months[i+1].col : WEEKS;
+    span.style.minWidth = ((nextCol - m.col) * 16) + 'px';
+    monthLabels.appendChild(span);
+  });
+}
+
+// ══════════════════════════════════════════════
+// SESSION CARDS
+// ══════════════════════════════════════════════
+function buildSessionCards() {
+  const grid = document.getElementById('sessionsGrid');
+
+  // Pull stored answers from sessionStorage
+  const raw = JSON.parse(sessionStorage.getItem('interviewAnswers') || '[]');
+  const storedSessions = JSON.parse(localStorage.getItem('interviewSessions') || '[]');
+
+  // Merge: if fresh answers exist, save them
+  if (raw.length) {
+    const session = {
+      date:      new Date().toLocaleDateString(),
+      questions: raw.length,
+      score:     calcAvg(raw),
+      answers:   raw,
+      done:      true
+    };
+    storedSessions.unshift(session);
+    localStorage.setItem('interviewSessions', JSON.stringify(storedSessions.slice(0, 20)));
+    sessionStorage.removeItem('interviewAnswers');
+
+    // Record in heatmap
+    recordActivityToday(true);
+  }
+
+  // Always show at least some demo cards if empty
+  const sessions = storedSessions.length ? storedSessions : getDemoSessions();
+
+  grid.innerHTML = '';
+
+  sessions.forEach((s, i) => {
+    const score = typeof s.score === 'number' ? s.score : 7;
+    const pct   = (score / 10) * 100;
+    let scoreClass = pct >= 80 ? 'score-green' : pct >= 60 ? 'score-blue' : pct >= 40 ? 'score-yellow' : 'score-red';
+    let colorClass = pct >= 80 ? 'color-green' : pct >= 60 ? 'color-blue' : 'color-yellow';
+    const status = s.done ? 'completed' : 'active';
+    const badge  = s.done
+      ? '<span class="card-badge badge-done">✓ DONE</span>'
+      : '<span class="card-badge badge-active">● ACTIVE</span>';
+
+    grid.innerHTML += `
+      <div class="session-card ${status}">
+        <div class="card-top">
+          <span class="card-icon">${i % 3 === 0 ? '🎤' : i % 3 === 1 ? '💼' : '🧠'}</span>
+          ${badge}
+        </div>
+        <div class="card-title">Session #${sessions.length - i}</div>
+        <div class="card-desc">${s.date} · ${s.questions} question${s.questions!==1?'s':''}</div>
+        <div class="card-score">
+          <div class="score-bar-wrap">
+            <div class="score-bar ${scoreClass}" style="width:${pct}%"></div>
+          </div>
+          <span class="score-label ${colorClass}">${score.toFixed ? score.toFixed(1) : score}/10</span>
+        </div>
+      </div>`;
+  });
+
+  // Summary stats
+  const completed = storedSessions.filter(s=>s.done).length;
+  const avg = storedSessions.length
+    ? (storedSessions.reduce((a,s) => a + (s.score||0), 0) / storedSessions.length).toFixed(1)
+    : '—';
+
+  document.getElementById('statCompleted').textContent = completed;
+  document.getElementById('statAvgScore').textContent  = avg;
+  document.getElementById('statTotal').textContent     = storedSessions.reduce((total, session) => total + (session.questions || 0), 0);
+}
+
+function calcAvg(answers) {
+  const scores = answers
+    .map(a => a.ai_score?.overall_score)
+    .filter(s => typeof s === 'number');
+  if (!scores.length) return 6.5;
+  return scores.reduce((a,b) => a+b, 0) / scores.length;
+}
+
+function recordActivityToday(done) {
+  const activity = JSON.parse(localStorage.getItem('interviewActivity') || '{}');
+  const key = new Date().toISOString().slice(0,10);
+  const existing = activity[key] || { count: 0, done: false };
+  activity[key] = { count: existing.count + 1, done: done || existing.done };
+  localStorage.setItem('interviewActivity', JSON.stringify(activity));
+}
+
+function getDemoSessions() {
+  return [
+    { date: 'Feb 20, 2026', questions: 5, score: 8.2, done: true },
+    { date: 'Feb 18, 2026', questions: 5, score: 7.5, done: true },
+    { date: 'Feb 15, 2026', questions: 5, score: 6.1, done: false },
+    { date: 'Feb 10, 2026', questions: 5, score: 8.8, done: true },
+    { date: 'Feb 5, 2026',  questions: 5, score: 5.4, done: false },
+    { date: 'Jan 29, 2026', questions: 5, score: 9.0, done: true },
+  ];
+}
+
+function calcStreak() {
+  const activity = JSON.parse(localStorage.getItem('interviewActivity') || '{}');
+  let streak = 0;
+  const d = new Date();
+  while (true) {
+    const key = d.toISOString().slice(0,10);
+    // As long as the day has an entry, we count it towards the streak
+    if (activity[key]) { streak++; d.setDate(d.getDate()-1); }
+    else { 
+      // check if missed today but had one yesterday
+      if (streak === 0) {
+          d.setDate(d.getDate()-1);
+          const yKey = d.toISOString().slice(0,10);
+          if (activity[yKey]) { streak++; d.setDate(d.getDate()-1); continue; }
+      }
+      break; 
+    }
+  }
+  const streakEl = document.getElementById('statStreak');
+  if (streakEl) streakEl.textContent = streak;
+}
+
+// Seed demo activity for heatmap visual
+function seedDemoActivity() {
+  if (localStorage.getItem('activitySeeded')) return;
+  const activity = {};
+  const today = new Date();
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - Math.floor(Math.random() * 340) - 2); // skip today/yesterday (handled separately)
+    const key  = d.toISOString().slice(0,10);
+    const done = Math.random() > 0.45;
+    activity[key] = { count: 1, done };
+  }
+  localStorage.setItem('interviewActivity', JSON.stringify(activity));
+  localStorage.setItem('activitySeeded', '1');
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  loadAvatar();
+  loadProfile();
+  seedDemoActivity();
+  buildHeatmap();
+  buildSessionCards();
+  calcStreak();
+});
+</script>
+</body>
+</html>
