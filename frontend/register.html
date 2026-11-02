@@ -367,6 +367,8 @@ document.getElementById('registerForm').addEventListener('submit', async functio
     }
 
     // ── Persist candidate info so interview.html can pick it up ──
+    // Starting a fresh registration creates a new interview session.
+    sessionStorage.removeItem('interviewTerminatedReason');
     sessionStorage.setItem('candidateEmail', email);
     sessionStorage.setItem('candidateName',  name);
     sessionStorage.setItem('generatedQuestions', JSON.stringify(data.questions || []));

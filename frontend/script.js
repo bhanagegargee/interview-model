@@ -8,15 +8,57 @@ let videoChunks = [];
 let permissionStream = null;  // Held open from the one-time camera permission request
 
 let faceDetection = null;
+let phoneDetectionModel = null;
 let isDetectingFaces = false;
+let isObjectPreviewing = false;
 let faceDetectionInFlight = false;
+let phoneDetectionInFlight = false;
+let proctoringReady = false;
+let proctoringWarningTimeout = null;
+let frameLoopTimeout = null;
+const PROCTORING_CONFIG = Object.freeze({
+    frameIntervalMs: 500, // at most 2 sampled frames per second
+    multiplePeopleFrames: 2,
+    faceViolationFrames: 4,
+    faceRecoveryFrames: 4,
+    faceWarningLimit: 2,
+    faceMinWidth: 0.18,
+    faceMinHeight: 0.20,
+    faceEdgeMargin: 0.025,
+    faceMaxYawRatio: 0.32,
+    faceMaxPitchRatio: 0.30,
+    phoneConfidence: 0.60,
+    objectDisplayConfidence: 0.35,
+    faceDetectionConfidence: 0.5,
+    phoneViolationFrames: 2,
+    phoneRecoveryFrames: 4,
+    phoneWarningLimit: 2,
+    phoneDetectionIntervalMs: 1000
+});
+let consecutiveMultipleFaceFrames = 0;
+let interviewTerminated = false;
+const proctoringState = {
+    faceWarnings: 0,
+    phoneWarnings: 0,
+    faceInferenceFailures: 0,
+    phoneInferenceFailures: 0,
+    faceViolationFrames: 0,
+    faceRecoveryFrames: 0,
+    faceEpisodeActive: false,
+    phoneViolationFrames: 0,
+    phoneRecoveryFrames: 0,
+    phoneEpisodeActive: false,
+    lastPhoneInferenceAt: 0
+};
 
 let interviewActive = false;
+let answerReadyForNext = false;
+let nextRequestedDuringRecording = false;
 let answers = [];
 const pendingAnalyses = new Set();
 let isCompleting = false;
 let recordingTimeout;
-let startBtn, skipBtn, stopBtn, statusText, questionText, answerText, progressText, indicator;
+let startBtn, nextBtn, stopBtn, statusText, questionText, answerText, progressText, indicator;
 let toneAnalysisBox, toneAnalysisContent, scoreBox, scoreContent, feedbackBox, summaryContent;
 let toneReportBox, toneReportContent;
 let statusPill;
@@ -62,7 +104,7 @@ function setOrb(state, label) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     startBtn        = document.getElementById('startBtn');
-    skipBtn         = document.getElementById('skipBtn');
+    nextBtn         = document.getElementById('nextBtn');
     stopBtn         = document.getElementById('stopBtn');
     statusText      = document.getElementById('statusText');
     questionText    = document.getElementById('questionText');
@@ -91,9 +133,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     const progLabel = document.getElementById('progressLabel');
     if (progLabel) progLabel.textContent = `Question 0 of ${TOTAL_QUESTIONS}`;
 
-    if (startBtn) startBtn.disabled = false;
-    if (skipBtn)  skipBtn.disabled  = true;
+    if (startBtn) startBtn.disabled = true;
+    if (nextBtn)  nextBtn.disabled  = true;
     if (stopBtn)  stopBtn.disabled  = true;
+
+    // A terminated interview remains locked for the lifetime of this tab,
+    // including reloads. A fresh registration starts a new browser session.
+    const previousTermination = sessionStorage.getItem('interviewTerminatedReason');
+    if (previousTermination) {
+        interviewTerminated = true;
+        startBtn && (startBtn.disabled = true);
+        const dialog = document.getElementById('multiplePeopleTermination');
+        const message = terminationMessage(previousTermination);
+        const dialogMessage = document.getElementById('multiplePeopleMessage');
+        if (dialogMessage) dialogMessage.textContent = message;
+        if (dialog) dialog.style.display = 'flex';
+        if (statusText) statusText.innerText = 'Interview terminated — ' + message;
+        setPill('danger', 'TERMINATED');
+        return;
+    }
 
     // ── Request camera + mic permission ONCE upfront ──────────────
     try {
@@ -108,64 +166,273 @@ document.addEventListener('DOMContentLoaded', async () => {
         permissionStream = null;
     }
 
-    // ── Initialize MediaPipe Face Detection ──────────────
+    if (!permissionStream?.active) {
+        if (statusText) statusText.innerText = 'Camera and microphone access are required for proctoring. Reload and allow access to begin.';
+        return;
+    }
+
+    // ── Initialize local face landmarks and phone object detection ─────────
     try {
-        faceDetection = new FaceDetection({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
+        faceDetection = new FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
         });
-
-        // Keep compatibility with different MediaPipe builds.
-        try {
-            faceDetection.setOptions({
-                modelSelection: 0,
-                minDetectionConfidence: 0.5
-            });
-        } catch (_) {
-            faceDetection.setOptions({
-                model: 'short',
-                minDetectionConfidence: 0.5
-            });
-        }
-
+        faceDetection.setOptions({ maxNumFaces: 3, refineLandmarks: true, minDetectionConfidence: PROCTORING_CONFIG.faceDetectionConfidence, minTrackingConfidence: 0.5 });
         faceDetection.onResults(onFaceResults);
+
+        if (!window.cocoSsd || !window.tf) throw new Error('TensorFlow.js COCO-SSD library did not load.');
+        phoneDetectionModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+
+        // Bind the existing permission stream and warm the landmark model before
+        // enabling Start, so a model failure cannot silently disable proctoring.
+        const preview = document.getElementById('videoPreview');
+        if (!preview) throw new Error('Camera preview is unavailable.');
+        preview.srcObject = permissionStream;
+        await preview.play();
+        await faceDetection.send({ image: preview });
+        proctoringReady = true;
+        isObjectPreviewing = true;
+        const videoCard = document.getElementById('videoPreviewCard');
+        if (videoCard) videoCard.style.display = 'block';
+        if (startBtn) startBtn.disabled = false;
+        if (statusText) statusText.innerText = 'Camera and proctoring ready';
+        ensureVideoFrameLoop();
     } catch (e) {
-        console.warn('⚠️ Face detection init failed; distraction alerts won\'t run:', e);
+        console.error('Proctoring model initialization failed:', e);
+        if (statusText) statusText.innerText = 'Proctoring could not load. Reload the interview page after checking your connection and camera permissions.';
+        if (startBtn) startBtn.disabled = true;
+        permissionStream?.getTracks().forEach(track => track.stop());
+        permissionStream = null;
+        const preview = document.getElementById('videoPreview');
+        if (preview) preview.srcObject = null;
     }
 });
 
 function onFaceResults(results) {
+    if (!isDetectingFaces || !interviewActive || interviewTerminated) return;
+    const faces = results?.multiFaceLandmarks || [];
+    const faceCount = faces.length;
     const alertBox = document.getElementById('distractionAlert');
-    if (!isDetectingFaces || !alertBox) return;
-    
-    if (!results.detections || results.detections.length !== 1) {
-        alertBox.style.display = 'block';
+    if (alertBox) alertBox.style.display = faceCount > 1 ? 'block' : 'none';
+    if (faceCount > 1) consecutiveMultipleFaceFrames++;
+    else if (faceCount === 1) consecutiveMultipleFaceFrames = 0;
+    if (consecutiveMultipleFaceFrames >= PROCTORING_CONFIG.multiplePeopleFrames) {
+        terminateInterview('multiple_people');
+        return;
+    }
+
+    if (faceCount === 1) processFaceVisibility(faces[0]);
+    else processFaceVisibility(null);
+}
+
+function faceVisibilityMetrics(landmarks) {
+    if (!landmarks || landmarks.length < 400) return { visible: false };
+    const xs = landmarks.map(point => point.x);
+    const ys = landmarks.map(point => point.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const width = maxX - minX, height = maxY - minY;
+    const margin = PROCTORING_CONFIG.faceEdgeMargin;
+    const anchors = [1, 33, 133, 152, 234, 263, 362, 454];
+    const inFrame = anchors.filter(index => {
+        const point = landmarks[index];
+        return point && point.x >= margin && point.x <= 1 - margin && point.y >= margin && point.y <= 1 - margin;
+    }).length / anchors.length;
+
+    const leftEye = landmarks[33], rightEye = landmarks[263], nose = landmarks[1];
+    const mouth = landmarks[13] && landmarks[14]
+        ? { x: (landmarks[13].x + landmarks[14].x) / 2, y: (landmarks[13].y + landmarks[14].y) / 2 }
+        : null;
+    const eyeDistance = Math.hypot(rightEye.x - leftEye.x, rightEye.y - leftEye.y);
+    const eyeMidX = (leftEye.x + rightEye.x) / 2;
+    const eyeMidY = (leftEye.y + rightEye.y) / 2;
+    const yawRatio = eyeDistance ? Math.abs(nose.x - eyeMidX) / eyeDistance : 1;
+    const noseToMouth = mouth ? Math.hypot(mouth.x - nose.x, mouth.y - nose.y) : 0;
+    const eyeToMouth = mouth ? Math.hypot(mouth.x - eyeMidX, mouth.y - eyeMidY) : 0;
+    const pitchRatio = eyeToMouth ? Math.abs(noseToMouth / eyeToMouth - 0.5) : 1;
+    const cropped = minX < margin || maxX > 1 - margin || minY < margin || maxY > 1 - margin;
+    return {
+        visible: !cropped && width >= PROCTORING_CONFIG.faceMinWidth && height >= PROCTORING_CONFIG.faceMinHeight &&
+            inFrame >= 0.875 && yawRatio <= PROCTORING_CONFIG.faceMaxYawRatio && pitchRatio <= PROCTORING_CONFIG.faceMaxPitchRatio,
+        width, height, cropped, inFrame, yawRatio, pitchRatio
+    };
+}
+
+function processFaceVisibility(landmarks) {
+    if (interviewTerminated || !interviewActive) return;
+    const visible = landmarks ? faceVisibilityMetrics(landmarks).visible : false;
+    if (proctoringState.faceEpisodeActive) {
+        if (visible) {
+            proctoringState.faceRecoveryFrames++;
+            if (proctoringState.faceRecoveryFrames >= PROCTORING_CONFIG.faceRecoveryFrames) {
+                proctoringState.faceEpisodeActive = false;
+                proctoringState.faceRecoveryFrames = 0;
+                proctoringState.faceViolationFrames = 0;
+            }
+        } else {
+            proctoringState.faceRecoveryFrames = 0;
+        }
+        return;
+    }
+
+    if (visible) {
+        proctoringState.faceViolationFrames = 0;
+        return;
+    }
+    proctoringState.faceViolationFrames++;
+    if (proctoringState.faceViolationFrames >= PROCTORING_CONFIG.faceViolationFrames) {
+        proctoringState.faceViolationFrames = 0;
+        proctoringState.faceEpisodeActive = true;
+        proctoringState.faceWarnings++;
+        if (proctoringState.faceWarnings >= PROCTORING_CONFIG.faceWarningLimit) {
+            terminateInterview('face_visibility');
+        } else {
+            showProctoringWarning('Warning 1/2: Your full face is not clearly visible. Please face the camera and ensure your entire face is within the frame. Another violation will terminate your interview.');
+        }
+    }
+}
+
+function handlePhoneResults(predictions) {
+    if (interviewTerminated || !interviewActive) return;
+    const detected = (predictions || []).some(item => item.class === 'cell phone' && item.score >= PROCTORING_CONFIG.phoneConfidence);
+    if (detected) {
+        proctoringState.phoneRecoveryFrames = 0;
+        proctoringState.phoneViolationFrames++;
+        if (!proctoringState.phoneEpisodeActive && proctoringState.phoneViolationFrames >= PROCTORING_CONFIG.phoneViolationFrames) {
+            proctoringState.phoneEpisodeActive = true;
+            proctoringState.phoneViolationFrames = 0;
+            proctoringState.phoneWarnings++;
+            if (proctoringState.phoneWarnings >= PROCTORING_CONFIG.phoneWarningLimit) {
+                terminateInterview('mobile_phone');
+            } else {
+                showProctoringWarning('Warning 1/2: A mobile phone has been detected in the camera frame. Please remove it from view and continue your interview without using your phone.');
+            }
+        }
     } else {
-        alertBox.style.display = 'none';
+        proctoringState.phoneViolationFrames = 0;
+        if (proctoringState.phoneEpisodeActive) {
+            proctoringState.phoneRecoveryFrames++;
+            if (proctoringState.phoneRecoveryFrames >= PROCTORING_CONFIG.phoneRecoveryFrames) {
+                proctoringState.phoneEpisodeActive = false;
+                proctoringState.phoneRecoveryFrames = 0;
+            }
+        }
+    }
+}
+
+function handleObjectDetections(predictions) {
+    renderObjectDetections(predictions);
+    handlePhoneResults(predictions);
+}
+
+function renderObjectDetections(predictions) {
+    const video = document.getElementById('videoPreview');
+    const canvas = document.getElementById('objectDetectionOverlay');
+    const summary = document.getElementById('detectedObjects');
+    const detections = (predictions || []).filter(item => item.score >= PROCTORING_CONFIG.objectDisplayConfidence);
+
+    if (summary) {
+        summary.textContent = detections.length
+            ? `Detected objects: ${detections.map(item => `${item.class} (${Math.round(item.score * 100)}%)`).join(', ')}`
+            : 'No recognized objects in the current frame.';
+    }
+    if (!video || !canvas || !video.videoWidth || !video.videoHeight) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.lineWidth = Math.max(2, canvas.width / 480);
+    context.font = `${Math.max(14, canvas.width / 48)}px sans-serif`;
+    context.textBaseline = 'top';
+
+    for (const item of detections) {
+        const [x, y, width, height] = item.bbox;
+        const label = `${item.class} ${Math.round(item.score * 100)}%`;
+        const labelHeight = Math.max(24, canvas.width / 32);
+        const labelWidth = context.measureText(label).width + 14;
+        context.strokeStyle = '#22d3ee';
+        context.fillStyle = 'rgba(8, 20, 32, 0.88)';
+        context.strokeRect(x, y, width, height);
+        context.fillRect(x, Math.max(0, y - labelHeight), labelWidth, labelHeight);
+        context.fillStyle = '#e2eaf5';
+        context.fillText(label, x + 7, Math.max(2, y - labelHeight + 4));
+    }
+}
+
+function showProctoringWarning(message) {
+    const banner = document.getElementById('proctoringWarning');
+    if (!banner) return;
+    clearTimeout(proctoringWarningTimeout);
+    banner.textContent = message;
+    banner.style.display = 'block';
+    proctoringWarningTimeout = setTimeout(() => { banner.style.display = 'none'; }, 8000);
+}
+
+function terminationMessage(reason) {
+    if (reason === 'multiple_people') return 'Multiple people detected! Only one person is allowed during the interview. Your interview has been stopped.';
+    if (reason === 'face_visibility') return 'Warning 2/2: Your full face is still not properly visible. Your interview will now be terminated.';
+    if (reason === 'mobile_phone') return 'Warning 2/2: A mobile phone has been detected again during your interview. Your interview will now be terminated.';
+    return 'Interview stopped because the camera or a required proctoring model became unavailable. Reload the interview page to try again.';
+}
+
+function handleProctoringFailure(message, error, detector = 'face') {
+    console.warn(message, error);
+    const key = detector === 'phone' ? 'phoneInferenceFailures' : 'faceInferenceFailures';
+    proctoringState[key]++;
+    if (proctoringState[key] >= 3 && interviewActive && !interviewTerminated) {
+        terminateInterview('proctoring_error');
     }
 }
 
 function processVideoFrame() {
+    frameLoopTimeout = null;
     const video = document.getElementById('videoPreview');
 
-    if (!isDetectingFaces) return;
-
-    // Keep polling while recording so detection starts as soon as video is ready.
-    if (!video || video.paused || video.ended || video.readyState < 2 || !faceDetection) {
-        setTimeout(processVideoFrame, 250);
+    if (interviewTerminated || (!interviewActive && !isObjectPreviewing)) return;
+    const cameraTrack = (stream || permissionStream)?.getVideoTracks?.()[0];
+    if (cameraTrack && cameraTrack.readyState !== 'live') {
+        terminateInterview('proctoring_error');
         return;
     }
 
-    if (!faceDetectionInFlight) {
+    // Keep polling while the interview is active so question transitions are covered too.
+    if (!video || video.paused || video.ended || video.readyState < 2 || !faceDetection || !phoneDetectionModel) {
+        frameLoopTimeout = setTimeout(processVideoFrame, PROCTORING_CONFIG.frameIntervalMs);
+        return;
+    }
+
+    if (interviewActive && isDetectingFaces && !faceDetectionInFlight) {
         faceDetectionInFlight = true;
         faceDetection
             .send({ image: video })
-            .catch((e) => console.warn('Face track err', e))
+            .then(() => { proctoringState.faceInferenceFailures = 0; })
+            .catch((e) => handleProctoringFailure('Face landmark inference failed.', e, 'face'))
             .finally(() => {
                 faceDetectionInFlight = false;
             });
     }
 
-    setTimeout(processVideoFrame, 250); // ~4 checks/second
+    const now = Date.now();
+    if (!phoneDetectionInFlight && now - proctoringState.lastPhoneInferenceAt >= PROCTORING_CONFIG.phoneDetectionIntervalMs) {
+        phoneDetectionInFlight = true;
+        proctoringState.lastPhoneInferenceAt = now;
+        phoneDetectionModel.detect(video, 10, PROCTORING_CONFIG.objectDisplayConfidence)
+            .then(predictions => {
+                proctoringState.phoneInferenceFailures = 0;
+                handleObjectDetections(predictions);
+            })
+            .catch((e) => handleProctoringFailure('Phone detector inference failed.', e, 'phone'))
+            .finally(() => { phoneDetectionInFlight = false; });
+    }
+
+    frameLoopTimeout = setTimeout(processVideoFrame, PROCTORING_CONFIG.frameIntervalMs);
+}
+
+function ensureVideoFrameLoop() {
+    if (frameLoopTimeout === null && (isObjectPreviewing || (isDetectingFaces && interviewActive))) {
+        processVideoFrame();
+    }
 }
 
 function setPill(state, text) {
@@ -332,14 +599,16 @@ function displayAIScore(aiScore) {
 // INTERVIEW FLOW
 // ═══════════════════════════════════════════════════════════════════
 function startInterview() {
-    if (isCompleting) return;
+    if (isCompleting || interviewTerminated || !proctoringReady) return;
     interviewActive = true;
     answers = [];
     pendingAnalyses.clear();
     questionIndex = 0;
+    answerReadyForNext = false;
+    nextRequestedDuringRecording = false;
 
     if (startBtn) startBtn.disabled = true;
-    if (skipBtn)  skipBtn.disabled  = false;
+    if (nextBtn)  nextBtn.disabled  = true;
     if (stopBtn)  stopBtn.disabled  = false;
 
     // Hide hero, show orb
@@ -356,22 +625,98 @@ function startInterview() {
 
     statusText && (statusText.innerText = 'Starting interview…');
     setPill('active', 'ACTIVE');
+    // The permission stream is usually available from page setup, so monitoring
+    // can begin while the first question is being spoken as well as recording.
+    if (permissionStream?.active) {
+        const preview = document.getElementById('videoPreview');
+        if (preview) {
+            preview.srcObject = permissionStream;
+            preview.play().catch(() => {});
+        }
+        isDetectingFaces = true;
+        consecutiveMultipleFaceFrames = 0;
+        ensureVideoFrameLoop();
+    }
     askNextQuestion();
 }
 
-async function skipQuestion() {
-    if (!interviewActive) return;
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        clearTimeout(recordingTimeout);
-        mediaRecorder.stop();
-        if (videoRecorder && videoRecorder.state === 'recording') videoRecorder.stop();
-        if (stream) stream.getTracks().forEach(t => t.stop());
-        indicator.classList.remove('recording');
-    }
+/** Shared, idempotent stop path for every proctoring termination reason. */
+function terminateInterview(reason) {
+    if (interviewTerminated || !interviewActive) return;
+    interviewTerminated = true;
+    interviewActive = false;
+    isCompleting = true; // blocks completion/report generation and any late restart
+    consecutiveMultipleFaceFrames = 0;
+    isDetectingFaces = false;
+    isObjectPreviewing = false;
+    faceDetectionInFlight = false;
+    clearTimeout(frameLoopTimeout);
+    frameLoopTimeout = null;
+    clearTimeout(proctoringWarningTimeout);
+    clearTimeout(recordingTimeout);
     window.speechSynthesis?.cancel();
-    answers.push({ question: questionText.innerText, answer: '(Skipped)' });
-    questionIndex++;
-    if (questionIndex >= TOTAL_QUESTIONS) completeInterview();
+
+    // Discard the answer currently being captured. Previous completed entries
+    // remain untouched; onstop handlers are guarded by the terminated state.
+    const currentAudio = mediaRecorder;
+    const currentVideo = videoRecorder;
+    mediaRecorder = null;
+    videoRecorder = null;
+    if (currentAudio?.state === 'recording') currentAudio.stop();
+    if (currentVideo?.state === 'recording') currentVideo.stop();
+    for (const activeStream of new Set([stream, permissionStream])) {
+        activeStream?.getTracks().forEach(track => track.stop());
+    }
+    stream = null;
+    permissionStream = null;
+    const videoPreview = document.getElementById('videoPreview');
+    if (videoPreview) videoPreview.srcObject = null;
+    const videoCard = document.getElementById('videoPreviewCard');
+    if (videoCard) videoCard.style.display = 'none';
+    indicator?.classList.remove('recording');
+    if (startBtn) startBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = true;
+    setPill('danger', 'TERMINATED');
+    const message = terminationMessage(reason);
+    if (statusText) statusText.innerText = 'Interview terminated — ' + message;
+    if (questionText) questionText.innerText = message;
+    if (answerText) answerText.innerText = '';
+
+    const alertBox = document.getElementById('distractionAlert');
+    if (alertBox) alertBox.style.display = 'none';
+    const warningBanner = document.getElementById('proctoringWarning');
+    if (warningBanner) warningBanner.style.display = 'none';
+    const dialog = document.getElementById('multiplePeopleTermination');
+    const dialogMessage = document.getElementById('multiplePeopleMessage');
+    if (dialogMessage) dialogMessage.textContent = message;
+    if (dialog) dialog.style.display = 'flex';
+    try {
+        sessionStorage.setItem('interviewTerminatedReason', reason);
+        sessionStorage.setItem('interviewAnswers', JSON.stringify(answers));
+        sessionStorage.setItem('totalQuestions', String(TOTAL_QUESTIONS));
+    } catch (_) {}
+    faceDetection?.close?.();
+    phoneDetectionModel?.dispose?.();
+}
+
+async function nextQuestion() {
+    if (!interviewActive || isCompleting || interviewTerminated) return;
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        nextRequestedDuringRecording = true;
+        stopRecording();
+        return;
+    }
+    if (!answerReadyForNext) return;
+    await advanceAfterCurrentAnswer(questionIndex);
+}
+
+async function advanceAfterCurrentAnswer(completedIndex) {
+    if (!interviewActive || interviewTerminated || !answerReadyForNext) return;
+    answerReadyForNext = false;
+    nextRequestedDuringRecording = false;
+    questionIndex = completedIndex + 1;
+    if (questionIndex >= TOTAL_QUESTIONS) void completeInterview();
     else await askNextQuestion();
 }
 
@@ -391,7 +736,7 @@ function stopInterview() {
 }
 
 async function askNextQuestion() {
-    if (!interviewActive) return;
+    if (!interviewActive || interviewTerminated) return;
     try {
         const requestedIndex = questionIndex;
         let data;
@@ -410,7 +755,7 @@ async function askNextQuestion() {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             data = await response.json();
         }
-        if (!interviewActive || questionIndex !== requestedIndex) return;
+        if (!interviewActive || interviewTerminated || questionIndex !== requestedIndex) return;
 
         // ── Store the AI-predicted timing for this question ──────────
         // Timings are cached from registration, with a backend fallback for direct visits.
@@ -424,7 +769,7 @@ async function askNextQuestion() {
 
         questionText.innerText = data.question;
         answerText.innerText   = '';
-        if (skipBtn) skipBtn.disabled = false;
+        if (nextBtn) nextBtn.disabled = true;
         if (stopBtn) stopBtn.disabled = false;
         progressText.innerText = `Q ${questionIndex + 1} / ${TOTAL_QUESTIONS}`;
 
@@ -439,7 +784,7 @@ async function askNextQuestion() {
 
         await speakQuestion(data.question);
         await new Promise(r => setTimeout(r, 500));
-        if (interviewActive && questionIndex === requestedIndex) await startRecording();
+        if (interviewActive && !interviewTerminated && questionIndex === requestedIndex) await startRecording();
     } catch (error) {
         console.error('❌ Error fetching question:', error);
         statusText.innerText = 'Error: Could not connect to backend';
@@ -473,6 +818,7 @@ function speakQuestion(text) {
 }
 
 async function startRecording() {
+    if (!interviewActive || interviewTerminated) return;
     try {
         // Reuse the upfront permission stream if still active, else request again
         if (permissionStream && permissionStream.active) {
@@ -483,6 +829,11 @@ async function startRecording() {
                 video: { width: 1280, height: 720, facingMode: 'user' }
             });
             permissionStream = stream;
+        }
+        if (!interviewActive || interviewTerminated) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+            return;
         }
 
         const videoPreview = document.getElementById('videoPreview');
@@ -495,6 +846,13 @@ async function startRecording() {
             } catch (e) {
                 console.warn('Video preview play() delayed:', e?.message || e);
             }
+        }
+        // Keep sampling the live camera during question playback and transitions,
+        // not only while the MediaRecorder is actively capturing an answer.
+        if (!isDetectingFaces) {
+            isDetectingFaces = true;
+            consecutiveMultipleFaceFrames = 0;
+            ensureVideoFrameLoop();
         }
 
         const audioTrack = stream.getAudioTracks()[0];
@@ -510,21 +868,23 @@ async function startRecording() {
         videoRecorder.ondataavailable = e => { if (e.data.size > 0) videoChunks.push(e.data); };
 
         mediaRecorder.onstart = () => {
+            if (interviewTerminated || !interviewActive) {
+                if (mediaRecorder?.state === 'recording') mediaRecorder.stop();
+                if (videoRecorder?.state === 'recording') videoRecorder.stop();
+                return;
+            }
             indicator.classList.add('recording');
             const timingSeconds = Math.round(currentQuestionTimingMs / 1000);
             statusText.innerText = `🎤🎥 Recording… (${timingSeconds}s limit)`;
             setPill('recording', 'REC ●');
             setOrb('recording', 'Listening…');
+            if (nextBtn) nextBtn.disabled = false;
 
             // Use the per-question AI-predicted timing instead of a fixed 30s
             recordingTimeout = setTimeout(() => {
                 if (mediaRecorder && mediaRecorder.state === 'recording') stopRecording();
             }, currentQuestionTimingMs);
 
-            // Start processing faces
-            isDetectingFaces = true;
-            faceDetectionInFlight = false;
-            processVideoFrame();
         };
 
         mediaRecorder.start();
@@ -537,6 +897,7 @@ async function startRecording() {
 }
 
 function stopRecording() {
+    if (interviewTerminated || !interviewActive) return;
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         const completedIndex = questionIndex;
         const completedQuestion = questionText.innerText;
@@ -552,16 +913,11 @@ function stopRecording() {
         mediaRecorder.stop();
         if (videoIsRecording) videoRecorder.stop();
         indicator.classList.remove('recording');
-        statusText.innerText = 'Saving answer and preparing the next question…';
+        statusText.innerText = 'Saving answer…';
         setOrb('idle', 'Saving answer…');
-        if (skipBtn) skipBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
         if (stopBtn) stopBtn.disabled = true;
 
-        const videoCard = document.getElementById('videoPreviewCard');
-        if (videoCard) videoCard.style.display = 'none';
-
-        isDetectingFaces = false;
-        faceDetectionInFlight = false;
         const alertBox = document.getElementById('distractionAlert');
         if (alertBox) alertBox.style.display = 'none';
 
@@ -569,6 +925,7 @@ function stopRecording() {
 }
 
 function sendMediaToBackend(completedIndex, completedQuestion) {
+    if (interviewTerminated || !interviewActive) return;
     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
     const videoBlob = videoChunks.length > 0 ? new Blob(videoChunks, { type: 'video/webm' }) : null;
     const entry = { question: completedQuestion, answer: '(Analysis pending)' };
@@ -610,10 +967,13 @@ function sendMediaToBackend(completedIndex, completedQuestion) {
         entry.answer = '(No audio detected)';
     }
 
-    if (interviewActive) {
-        questionIndex = completedIndex + 1;
-        if (questionIndex >= TOTAL_QUESTIONS) completeInterview();
-        else askNextQuestion();
+    if (!interviewActive || interviewTerminated) return;
+    answerReadyForNext = true;
+    if (nextRequestedDuringRecording) {
+        void advanceAfterCurrentAnswer(completedIndex);
+    } else {
+        if (statusText) statusText.innerText = 'Answer recorded. Click Next when you are ready for the next question.';
+        if (nextBtn) nextBtn.disabled = false;
     }
 }
 
@@ -692,18 +1052,30 @@ function displayVideoAnalysis(videoData) {
 // COMPLETE — save data & redirect to report page
 // ═══════════════════════════════════════════════════════════════════
 async function completeInterview() {
-    if (isCompleting) return;
+    if (isCompleting || interviewTerminated) return;
     isCompleting = true;
     interviewActive = false;
+    isDetectingFaces = false;
+    isObjectPreviewing = false;
+    clearTimeout(frameLoopTimeout);
+    frameLoopTimeout = null;
+    faceDetection?.close?.();
+    phoneDetectionModel?.dispose?.();
     statusText.innerText   = 'Interview completed!';
     questionText.innerText = 'Thank you for completing the interview!';
     answerText.innerText   = '';
     setPill('done', 'DONE');
 
     if (startBtn) startBtn.disabled = true;
-    if (skipBtn)  skipBtn.disabled  = true;
+    if (nextBtn)  nextBtn.disabled  = true;
     if (stopBtn)  stopBtn.disabled  = true;
-    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    for (const activeStream of new Set([stream, permissionStream])) {
+        activeStream?.getTracks().forEach(track => track.stop());
+    }
+    stream = null;
+    permissionStream = null;
+    const videoCard = document.getElementById('videoPreviewCard');
+    if (videoCard) videoCard.style.display = 'none';
 
     if (pendingAnalyses.size > 0) {
         statusText.innerText = `Finishing ${pendingAnalyses.size} answer analysis request(s)…`;
@@ -722,9 +1094,10 @@ async function completeInterview() {
 }
 
 function resetInterview() {
+    if (interviewTerminated) return;
     interviewActive = false;
     if (startBtn) startBtn.disabled = false;
-    if (skipBtn)  skipBtn.disabled  = true;
+    if (nextBtn)  nextBtn.disabled  = true;
     if (stopBtn)  stopBtn.disabled  = true;
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
@@ -910,7 +1283,7 @@ function terminateForTabSwitch() {
     if (indicator)    indicator.classList.remove('recording');
 
     if (startBtn) startBtn.disabled = true;
-    if (skipBtn)  skipBtn.disabled  = true;
+    if (nextBtn)  nextBtn.disabled  = true;
     if (stopBtn)  stopBtn.disabled  = true;
 
     try {

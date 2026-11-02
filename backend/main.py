@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, Response
 import base64
 from pydantic import BaseModel
 import whisper
-import os, re, shutil, uuid, logging
+import os, re, shutil, uuid, logging, tempfile
 from pathlib import Path
 from tone_analyzer import ToneAnalyzer
 from interview_scorer import InterviewScorer
@@ -25,6 +25,45 @@ from mongo_store import MongoStore
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+def configure_ffmpeg() -> bool:
+    """Make FFmpeg available to Whisper, using the bundled wheel as fallback."""
+    if shutil.which("ffmpeg"):
+        return True
+
+    try:
+        import imageio_ffmpeg
+
+        ffmpeg_exe = Path(imageio_ffmpeg.get_ffmpeg_exe())
+        if not ffmpeg_exe.is_file():
+            raise FileNotFoundError(f"Bundled FFmpeg executable does not exist: {ffmpeg_exe}")
+
+        # Whisper invokes the literal command "ffmpeg". imageio-ffmpeg's
+        # Windows wheel uses a versioned filename, so expose a stable alias.
+        command_name = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+        command_dir = Path(tempfile.gettempdir()) / "ai_interview_ffmpeg" / ffmpeg_exe.name
+        command_dir.mkdir(parents=True, exist_ok=True)
+        command_path = command_dir / command_name
+        if not command_path.exists():
+            try:
+                os.link(ffmpeg_exe, command_path)
+            except OSError:
+                shutil.copy2(ffmpeg_exe, command_path)
+
+        os.environ["PATH"] = str(command_dir) + os.pathsep + os.environ.get("PATH", "")
+        available = shutil.which("ffmpeg")
+        if available:
+            logger.info("Using bundled FFmpeg: %s", available)
+            return True
+    except Exception as exc:
+        logger.warning("Could not configure bundled FFmpeg: %s", exc)
+
+    logger.error("FFmpeg is unavailable. Whisper cannot decode browser-recorded WebM audio.")
+    return False
+
+
+FFMPEG_AVAILABLE = configure_ffmpeg()
 
 # ==========================================================
 # FORCE GROQ CONFIG (VERY IMPORTANT)
@@ -324,10 +363,17 @@ async def analyze_answer(
             else:
                 logger.warning("⚠️  Video file empty")
 
+        if not FFMPEG_AVAILABLE:
+            raise HTTPException(503, "Audio transcription is unavailable because FFmpeg is missing. Install backend requirements and restart the server.")
+
         try:
             result = model.transcribe(str(audio_path), fp16=False, language="en", task="transcribe")
-        except FileNotFoundError:
-            raise HTTPException(500, "ffmpeg not found — install from https://ffmpeg.org")
+        except FileNotFoundError as exc:
+            logger.error("Whisper could not launch FFmpeg: %s", exc, exc_info=True)
+            raise HTTPException(503, "Audio transcription is unavailable because FFmpeg is missing. Install backend requirements and restart the server.")
+        except RuntimeError as exc:
+            logger.warning("Whisper could not decode uploaded audio: %s", exc, exc_info=True)
+            raise HTTPException(400, "Could not decode the recorded audio. Please check your microphone and try recording the answer again.")
 
         transcript    = result.get("text", "").strip()
         tone_analysis = tone_analyzer.analyze_audio(str(audio_path))

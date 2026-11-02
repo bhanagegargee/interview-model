@@ -8,7 +8,8 @@ An intelligent, fully localized technical and behavioral interview simulation mo
 - **Audio Transcription & Tone Analysis**: Transcribes answers offline via OpenAI's Whisper model (`base` size) and uses `librosa` to analyze speech rates, pitch, and energy.
 - **AI Scoring & Feedback**: Evaluates the transcribed answers locally on your machine using Ollama (`llama3.1:8b` by default).
 - **Body Language & Video Analysis**: Employs backend OpenCV & MediaPipe techniques to evaluate eye contact, shoulder alignment, and spine angle. 
-- **Real-Time Distraction Alert**: The browser dynamically runs a frontend MediaPipe face detection model from the camera feed while recording, instantly flashing an alert if there are multiple people or zero people in the frame in real-time.
+- **Real-Time Distraction Alert**: Browser-side face landmarks monitor the camera throughout the interview, warn on sustained face-visibility issues, and stop the session when multiple faces are confirmed.
+- **Interview Proctoring**: During an active interview, browser-local MediaPipe Face Mesh checks face framing and pose, while TensorFlow.js COCO-SSD checks for visible mobile phones. Two distinct face-visibility or phone episodes terminate the interview; confirmed multiple faces still terminate immediately.
 
 ---
 
@@ -24,7 +25,7 @@ The system has been completely decoupled from cloud APIs (Groq) to ensure data p
 
 ### Prerequisites
 1. **Python 3.9+** installed locally.
-2. **FFMPEG** installed on your system. It must be accessible from your system's PATH. (Can be downloaded from https://ffmpeg.org/download.html).
+2. FFmpeg is required by Whisper to decode recorded WebM audio. The backend requirements now include `imageio-ffmpeg`, which supplies a bundled executable, so a separate system-wide FFmpeg installation is optional.
 3. **Ollama** installed on your system.
     - Start it in a background terminal by pulling/running the model at least once:
       ```powershell
@@ -73,3 +74,11 @@ python -m http.server 3000
 ## Important Usage Note
 Since all Whisper Transcription and AI Response generation logic operates seamlessly offline on your local CPU (or GPU depending on your hardware config):
 - **Processing Time:** While the camera records, it buffers the video directly. Processing happens *after* you finish recording. Whisper transcription, answer scoring, and video assessment run in sequence and can take several minutes on a local CPU. Keep the interview page open while it shows **"Processing..."**.
+
+## Browser Proctoring Models
+
+The interview page loads MediaPipe Face Mesh, TensorFlow.js 4.22.0, and the TensorFlow.js COCO-SSD 2.2.3 `lite_mobilenet_v2` model from public CDNs. No Python package installation is needed for these browser models, but the browser needs network access on first load to download the libraries and model weights. During the interview, COCO-SSD labels detected common objects and draws their bounding boxes over the camera preview; phone detections also feed the separate phone-warning rule. Proctoring inference runs in the browser using the existing camera stream and does not add a separate frame upload. The existing answer-recording workflow still sends its recorded audio/video clips to the backend for assessment.
+
+Proctoring thresholds are grouped in `frontend/script.js` under `PROCTORING_CONFIG`. Defaults sample face landmarks at 2 frames per second and phone objects at 1 frame per second, require 4 consecutive face-visibility violation samples or 2 phone detections, and require 4 clear samples before a continuing violation episode is considered recovered. The COCO-SSD model includes a `cell phone` class; detections indicate a visible phone, not whether a person is using it.
+
+Face visibility uses face-mesh landmark coverage, normalized face size and frame boundaries, plus approximate yaw and pitch ratios. It does not reliably prove that the face is unoccluded: hands, masks, poor lighting, motion blur, and camera quality can cause false positives or missed detections. The configured geometric thresholds are initial defaults and should be manually tuned on target cameras. If required models fail to initialize, the interview Start button remains disabled; repeated inference failure or camera loss terminates an active interview rather than silently disabling proctoring.

@@ -67,8 +67,8 @@
         <button id="startBtn" class="btn btn-primary" onclick="startInterview()">
             <span class="btn-icon">▶</span>&nbsp;Start Interview
         </button>
-        <button id="skipBtn" class="btn btn-secondary" onclick="skipQuestion()" disabled>
-            <span class="btn-icon">⏭</span>&nbsp;Skip Question
+        <button id="nextBtn" class="btn btn-secondary" onclick="nextQuestion()" disabled>
+            <span class="btn-icon">⏭</span>&nbsp;Next Question
         </button>
         <button id="stopBtn" class="btn btn-danger" onclick="stopInterview()" disabled>
             <span class="btn-icon">■</span>&nbsp;End Early
@@ -84,14 +84,26 @@
     </div>
 
     <!-- Real-time Distraction Alert -->
-    <div id="distractionAlert" style="display:none; text-align:center; background:#ef4444; color:white; padding:12px; border-radius:8px; font-weight:600; margin-bottom:16px; box-shadow:0 4px 12px rgba(239, 68, 68, 0.4); letter-spacing:0.5px;">
-        ⚠️ Distraction Detected: Please ensure exactly ONE face is clearly visible!
+    <div id="distractionAlert" role="status" aria-live="assertive" style="display:none; text-align:center; background:#ef4444; color:white; padding:12px; border-radius:8px; font-weight:600; margin-bottom:16px; box-shadow:0 4px 12px rgba(239, 68, 68, 0.4); letter-spacing:0.5px;">
+        ⚠️ Multiple people detected. Please ensure only one person is visible.
+    </div>
+    <div id="proctoringWarning" role="alert" aria-live="assertive" style="display:none; text-align:center; background:#b45309; color:white; padding:14px; border-radius:8px; font-weight:600; margin-bottom:16px; box-shadow:0 4px 12px rgba(180, 83, 9, 0.35);"></div>
+    <div id="multiplePeopleTermination" role="alertdialog" aria-modal="true" aria-labelledby="multiplePeopleTitle" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(3,8,15,.88); padding:24px; align-items:center; justify-content:center;">
+        <section style="width:min(100%,520px); padding:28px; border:1px solid rgba(248,113,113,.5); border-radius:16px; background:#111d2e; box-shadow:0 20px 80px rgba(0,0,0,.6); text-align:center;">
+            <h2 id="multiplePeopleTitle" style="font-family:var(--font-display); color:#fca5a5; margin-bottom:14px;">Interview ended</h2>
+            <p id="multiplePeopleMessage" style="color:var(--text-primary); margin-bottom:22px;">Multiple people detected! Only one person is allowed during the interview. Your interview has been stopped.</p>
+            <a class="btn btn-primary" href="index.html" style="text-decoration:none;">Return to dashboard</a>
+        </section>
     </div>
 
     <!-- Video preview (shows during recording) -->
     <div class="card card-video" id="videoPreviewCard" style="display:none;">
         <div class="card-eyebrow">📹 &nbsp;CAMERA PREVIEW</div>
-        <video id="videoPreview" autoplay muted playsinline style="width:100%; max-width:640px; border-radius:8px;"></video>
+        <div class="video-detection-stage" style="position:relative; width:min(100%,640px);">
+            <video id="videoPreview" autoplay muted playsinline style="display:block; width:100%; border-radius:8px;"></video>
+            <canvas id="objectDetectionOverlay" aria-hidden="true" style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none;"></canvas>
+        </div>
+        <p id="detectedObjects" role="status" aria-live="polite" style="margin-top:10px; color:var(--text-sub); font-size:13px;">Waiting for camera objects…</p>
     </div>
 
     <!-- Q & A -->
@@ -240,7 +252,9 @@
 .orb-label.talking  { color: var(--accent); }
 .orb-label.recording{ color: var(--red); }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 <script src="script.js"></script>
 </body>
 </html>
